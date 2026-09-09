@@ -784,7 +784,7 @@ function setSaveState(text, isError){
 
 async function resetCurrentDay(){
   const label = dateKey(currentDate);
-  const ok = confirm(`Alle Einträge für ${label} wirklich entfernen? Der Tag wird wieder unbearbeitet.`);
+  const ok = confirm(`${label} ${t("confirmClearDay")}`);
   if(!ok) return;
   const key = "tag:" + label;
   try{
@@ -794,14 +794,14 @@ async function resetCurrentDay(){
   }
   currentDay = emptyDay();
   dirty = false;
-  setSaveState("Tag wurde geleert.", false);
+  setSaveState(t("statusDayCleared"), false);
   renderDay();
 }
 
 function performSave(){
   const errors = validateDay(currentDay);
   if(errors.length){
-    setSaveState("Bitte ergänzen: " + errors.join(" · "), true);
+    setSaveState(t("statusPleaseComplete") + errors.join(" · "), true);
     return;
   }
   saveNow(1);
@@ -811,7 +811,7 @@ async function loadDay(){
   clampDate();
   const token = ++loadToken;
   const key = "tag:" + dateKey(currentDate);
-  setSaveState("lädt…", false);
+  setSaveState(t("statusLoading"), false);
   dirty = false;
   renderDateNav();
 
@@ -832,7 +832,7 @@ async function loadDay(){
 
 function markDirty(){
   dirty = true;
-  setSaveState("Ungespeicherte Änderungen — unten auf „Speichern“ tippen", false);
+  setSaveState(t("statusUnsaved"), false);
 }
 
 function validateDay(day){
@@ -850,12 +850,12 @@ function validateDay(day){
 
 async function saveNow(attempt){
   const key = "tag:" + dateKey(currentDate);
-  setSaveState(attempt===1 ? "speichert…" : "speichert… (Versuch " + attempt + ")", false);
+  setSaveState(attempt===1 ? t("statusSaving") : t("statusSavingRetry") + " " + attempt + ")", false);
   try{
     const result = await cloudStore.set(key, JSON.stringify(currentDay));
     if(result){
       dirty = false;
-      setSaveState("gespeichert · für alle vier sichtbar", false);
+      setSaveState(t("statusSaved"), false);
     }else{
       throw new Error("kein Ergebnis vom Speicher");
     }
@@ -864,7 +864,7 @@ async function saveNow(attempt){
       setTimeout(()=>saveNow(attempt+1), 800 * attempt);
     }else{
       const msg = (e && e.message) ? e.message : "unbekannter Fehler";
-      setSaveState("Speichern fehlgeschlagen (" + msg + ") — bitte erneut versuchen", true);
+      setSaveState(t("statusSaveFailed") + msg + t("statusRetry"), true);
     }
   }
 }
@@ -952,7 +952,7 @@ function renderWeatherChip(){
 
 function selectHtml(id, options, value){
   const opts = options.map(o=>{
-    const label = o===""? "— wählen —" : o + " Uhr";
+    const label = o===""? t("selectPlaceholder") : o + " Uhr";
     return `<option value="${o}" ${o===value?"selected":""}>${label}</option>`;
   }).join("");
   return `<select id="${id}">${opts}</select>`;
@@ -1147,7 +1147,7 @@ function renderEventsList(){
         <input type="checkbox" class="ev-hasEndTime" ${ev.hasEndTime?"checked":""}>
         <label>Endzeit hinzufügen (Von–Bis)</label>
       </div>
-      <input type="text" class="ev-location" placeholder="Ort (z. B. Turnsaal, Klassenzimmer)" value="${escapeHtml(ev.location)}" style="margin-top:10px;">
+      <input type="text" class="ev-location" placeholder="${t("locEvent")}" value="${escapeHtml(ev.location)}" style="margin-top:10px;">
       <label class="field-label" style="margin-top:12px;font-size:13px;">${t("participants")}</label>
       <div class="chips ev-chips">${getActiveNames().map(n=>nameChipHtml(n, ev.participants.includes(n))).join("")}</div>
       <label class="field-label" style="margin-top:12px;font-size:13px;">${t("whichKid")}</label>
@@ -1227,7 +1227,7 @@ function renderNoticesList(){
       </div>
       <label class="field-label" style="margin-top:10px;font-size:13px;">${t("whichKid")}</label>
       <div class="chips notice-kid-chips">${kidChips(n.kids)}</div>
-      <input type="text" class="notice-location" placeholder="Ort (z. B. Garderobe, Turnsaal)" value="${escapeHtml(n.location)}" style="margin-top:10px;">
+      <input type="text" class="notice-location" placeholder="${t("locNotice")}" value="${escapeHtml(n.location)}" style="margin-top:10px;">
       <label class="field-label" style="margin-top:10px;font-size:13px;">Fotos</label>
       ${photosHtml(n.photos)}
     </div>
@@ -1285,14 +1285,14 @@ function kidExceptionBlock(key, label, ex){
         <label>${t("noBring")}</label>
       </div>
       <div class="exception-reason" style="display:${ex.noBring?"block":"none"}">
-        <input type="text" class="exc-noBringReason" placeholder="Grund (z. B. Arzttermin)" value="${escapeHtml(ex.noBringReason)}">
+        <input type="text" class="exc-noBringReason" placeholder="${t("reasonNoBring")}" value="${escapeHtml(ex.noBringReason)}">
       </div>
       <div class="subrow">
         <input type="checkbox" class="exc-noAbhol" ${ex.noAbhol?"checked":""}>
         <label>${t("noAbhol")}</label>
       </div>
       <div class="exception-reason" style="display:${ex.noAbhol?"block":"none"}">
-        <input type="text" class="exc-noAbholReason" placeholder="Grund (z. B. Vater holt früher ab)" value="${escapeHtml(ex.noAbholReason)}">
+        <input type="text" class="exc-noAbholReason" placeholder="${t("reasonNoAbhol")}" value="${escapeHtml(ex.noAbholReason)}">
       </div>
     </div>
   `;
@@ -1380,11 +1380,11 @@ function updateDuaNote(){
   const noteEl = document.getElementById("duaNote");
   if(day.dua.mustPickup && (day.dua.wishTime || day.dua.byTime)){
     const parts = [];
-    if(day.dua.wishTime) parts.push(`Wunsch: ${day.dua.wishTime} Uhr`);
-    if(day.dua.byTime) parts.push(`spätestens ${day.dua.byTime} Uhr`);
-    noteEl.innerHTML = `<div class="dua-note">Familie Irmak: Dua abholen — ${parts.join(", ")}</div>`;
+    if(day.dua.wishTime) parts.push(`${t("duaWishLabel")}: ${day.dua.wishTime} Uhr`);
+    if(day.dua.byTime) parts.push(`${t("duaLatestLabel")} ${day.dua.byTime} Uhr`);
+    noteEl.innerHTML = `<div class="dua-note">${t("duaPickupHint")} ${parts.join(", ")}</div>`;
   }else if(day.dua.mustPickup){
-    noteEl.innerHTML = `<div class="dua-note">Familie Irmak: Dua heute abholen — bitte Uhrzeit wählen</div>`;
+    noteEl.innerHTML = `<div class="dua-note">${t("duaWaiting")}</div>`;
   }else{
     noteEl.innerHTML = "";
   }
@@ -1486,7 +1486,16 @@ const T = {
     bringerFehlt:"Bringer fehlt", holerFehlt:"Abholer fehlt", bringt:"Bringt", holtAb:"Holt ab",
     bereitFehlt:"Bereitschaftszeit fehlt", ausnahmeBeachten:"Ausnahme beachten!", terminVorhanden:"Schultermin vorhanden",
     hinweisVorhanden:"Hinweis vorhanden", duaBeachten:"Dua Abholung beachten", elternHinzugefuegt:"Eltern Arbeitszeit hinzugefügt",
-    pinTitle:"Schulwegplan", pinPrompt:"Bitte 4-stelligen Code eingeben", pinButton:"Freischalten"
+    pinTitle:"Schulwegplan", pinPrompt:"Bitte 4-stelligen Code eingeben", pinButton:"Freischalten",
+    selectPlaceholder:"— wählen —", reasonNoBring:"Grund (z. B. Arzttermin)", reasonNoAbhol:"Grund (z. B. Vater holt früher ab)",
+    duaWishLabel:"Wunsch", duaLatestLabel:"spätestens", duaPickupHint:"Familie Irmak: Dua abholen —",
+    duaWaiting:"Familie Irmak: Dua heute abholen — bitte Uhrzeit wählen",
+    statusLoading:"lädt…", statusUnsaved:"Ungespeicherte Änderungen — unten auf „Speichern“ tippen",
+    statusSaving:"speichert…", statusSavingRetry:"speichert… (Versuch", statusSaved:"gespeichert · für alle vier sichtbar",
+    statusSaveFailed:"Speichern fehlgeschlagen (", statusRetry:") — bitte erneut versuchen",
+    statusDayCleared:"Tag wurde geleert.", statusPleaseComplete:"Bitte ergänzen: ",
+    confirmClearDay:"wirklich entfernen? Der Tag wird wieder unbearbeitet.",
+    globalSaved:"gespeichert · für alle sichtbar", globalSaveFailed:"Speichern fehlgeschlagen ("
   },
   tr:{
     title:"🎒 Okul Yolu Planı", today:"Bugün", saveTop:"💾 Kaydet", resetDay:"Günü temizle", save:"Kaydet",
@@ -1512,7 +1521,16 @@ const T = {
     bringerFehlt:"Götüren eksik", holerFehlt:"Alan eksik", bringt:"Götürüyor", holtAb:"Alıyor",
     bereitFehlt:"Hazır olma saati eksik", ausnahmeBeachten:"İstisnaya dikkat!", terminVorhanden:"Okul randevusu var",
     hinweisVorhanden:"Not var", duaBeachten:"Dua alımına dikkat", elternHinzugefuegt:"Ebeveyn çalışma saati eklendi",
-    pinTitle:"Okul Yolu Planı", pinPrompt:"Lütfen 4 haneli kodu girin", pinButton:"Kilidi aç"
+    pinTitle:"Okul Yolu Planı", pinPrompt:"Lütfen 4 haneli kodu girin", pinButton:"Kilidi aç",
+    selectPlaceholder:"— seçin —", reasonNoBring:"Sebep (örn. doktor randevusu)", reasonNoAbhol:"Sebep (örn. baba daha erken alacak)",
+    duaWishLabel:"İstek", duaLatestLabel:"en geç", duaPickupHint:"Irmak Ailesi: Dua'yı alın —",
+    duaWaiting:"Irmak Ailesi: Dua bugün alınmalı — lütfen saat seçin",
+    statusLoading:"yükleniyor…", statusUnsaved:"Kaydedilmemiş değişiklikler — aşağıdan „Kaydet“e dokunun",
+    statusSaving:"kaydediliyor…", statusSavingRetry:"kaydediliyor… (deneme", statusSaved:"kaydedildi · dört kişi için görünür",
+    statusSaveFailed:"Kaydetme başarısız (", statusRetry:") — lütfen tekrar deneyin",
+    statusDayCleared:"Gün temizlendi.", statusPleaseComplete:"Lütfen tamamlayın: ",
+    confirmClearDay:"gerçekten silinsin mi? Gün yeniden işlenmemiş olacak.",
+    globalSaved:"kaydedildi · herkes için görünür", globalSaveFailed:"Kaydetme başarısız ("
   }
 };
 function t(key){ return (T[LANG] && T[LANG][key]) || T.de[key] || key; }
@@ -1562,13 +1580,13 @@ async function loadGlobalData(){
 
 async function saveGlobalData(){
   const statusEl = document.getElementById("globalStatus");
-  statusEl.textContent = "speichert…";
+  statusEl.textContent = t("statusSaving");
   try{
     await cloudStore.set(GLOBAL_KEY, JSON.stringify(globalData));
     globalDirty = false;
-    statusEl.textContent = "gespeichert · für alle sichtbar";
+    statusEl.textContent = t("globalSaved");
   }catch(e){
-    statusEl.textContent = "Speichern fehlgeschlagen (" + ((e&&e.message)||"Fehler") + ")";
+    statusEl.textContent = t("globalSaveFailed") + ((e&&e.message)||"Fehler") + ")";
   }
 }
 
@@ -1621,10 +1639,16 @@ function renderRemarksList(kidKey){
   initAutoGrow(wrap);
 }
 
+let currentBusDirection = "hin";
 function renderBusTimes(direction){
+  currentBusDirection = direction;
   const wrap = document.getElementById("busTimesList");
   const times = direction === "hin" ? BUS_TO_SCHOOL : BUS_FROM_SCHOOL;
-  wrap.innerHTML = `<div class="bus-times-grid">${times.map(t=>`<span class="bus-time-pill">${t}</span>`).join("")}</div>`;
+  wrap.innerHTML = `<div class="bus-times-grid">${times.map(time=>`<span class="bus-time-pill">${time}</span>`).join("")}</div>`;
+  const toBtn = document.getElementById("busToSchoolBtn");
+  const fromBtn = document.getElementById("busFromSchoolBtn");
+  if(toBtn) toBtn.classList.toggle("selected", direction==="hin");
+  if(fromBtn) fromBtn.classList.toggle("selected", direction==="zurueck");
 }
 
 function renderGlobalPanel(){
