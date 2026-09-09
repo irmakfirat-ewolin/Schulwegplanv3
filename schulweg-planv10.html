@@ -1,0 +1,1915 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Schulwegplan</title>
+<style>
+  :root{
+    --paper:#FFFDF8;
+    --paper-raised:#FFFFFF;
+    --ink:#2E2A22;
+    --ink-soft:#7A7364;
+    --line:#EDE6D6;
+    --amber:#F2A93B;
+    --amber-soft:#FDECC9;
+    --teal:#2E9E8F;
+    --teal-soft:#D9F1EC;
+    --brick:#EF6F5B;
+    --brick-soft:#FDE1DA;
+    --violet:#8B7FD9;
+    --violet-soft:#EAE6FB;
+    --pink:#EE7FA8;
+    --pink-soft:#FCE3ED;
+    --blue:#4FA3D1;
+    --blue-soft:#DDF0FA;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(circle at 92% 0%, var(--blue-soft) 0%, transparent 40%),
+      radial-gradient(circle at 4% 8%, var(--pink-soft) 0%, transparent 35%),
+      var(--paper);
+    background-attachment:fixed;
+    color:var(--ink);
+    font-family:-apple-system,system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    padding-bottom:60px;
+  }
+  h1,h2,h3,.rounded{font-family:ui-rounded,'SF Pro Rounded',system-ui,sans-serif;}
+  header{
+    padding:22px 18px 14px;
+    background:var(--paper);
+    position:sticky;
+    top:0;
+    z-index:20;
+    border-bottom:2px solid var(--line);
+  }
+  header h1{
+    margin:0 0 4px;
+    font-size:29px;
+    font-weight:700;
+    color:var(--teal);
+  }
+  header p{
+    margin:0;
+    font-size:13.5px;
+    color:var(--ink-soft);
+  }
+  .datebar{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    margin-top:14px;
+  }
+  .datenav-btn{
+    width:38px;
+    height:38px;
+    border-radius:10px;
+    border:2px solid var(--line);
+    background:var(--paper-raised);
+    font-size:18px;
+    font-weight:700;
+    color:var(--ink);
+    cursor:pointer;
+    flex-shrink:0;
+  }
+  #dateInput{
+    flex:1;
+    font-family:-apple-system,system-ui,sans-serif;
+    font-size:15px;
+    font-weight:600;
+    padding:9px 10px;
+    border-radius:10px;
+    border:2px solid var(--line);
+    background:var(--paper-raised);
+    color:var(--ink);
+  }
+  .today-btn{
+    font-family:ui-rounded,'SF Pro Rounded',system-ui,sans-serif;
+    font-size:13px;
+    font-weight:600;
+    color:#fff;
+    background:var(--teal);
+    border:none;
+    border-radius:10px;
+    padding:0 14px;
+    height:38px;
+    cursor:pointer;
+    flex-shrink:0;
+  }
+  .weekday-chip{
+    font-family: ui-rounded,'SF Pro Rounded',system-ui,sans-serif;
+    font-size:14px;
+    font-weight:700;
+    color:#fff;
+    background:var(--ink-soft);
+    border-radius:8px;
+    padding:9px 10px;
+    flex-shrink:0;
+    min-width:30px;
+    text-align:center;
+  }
+  .dateinfo-row{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    margin-top:8px;
+  }
+  .dateinfo-row .today-btn{margin-left:auto;}
+  .lang-btn{
+    font-size:20px;
+    background:none;
+    border:2px solid transparent;
+    border-radius:8px;
+    padding:2px 4px;
+    cursor:pointer;
+    opacity:0.5;
+  }
+  .lang-btn.selected{opacity:1;border-color:var(--teal);}
+  .weather-chip{
+    font-size:13.5px;
+    font-weight:600;
+    color:var(--ink-soft);
+    background:var(--paper-raised);
+    border:2px solid var(--line);
+    border-radius:20px;
+    padding:5px 12px;
+  }
+
+  .topsave-row{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    margin-top:10px;
+  }
+  .save-btn-top{
+    font-family:ui-rounded,'SF Pro Rounded',system-ui,sans-serif;
+    font-size:14px;
+    font-weight:700;
+    color:#fff;
+    background:var(--teal);
+    border:none;
+    border-radius:10px;
+    padding:9px 16px;
+    cursor:pointer;
+  }
+  .topsave-status{
+    font-size:12px;
+    color:var(--ink-soft);
+    flex:1;
+  }
+  .topsave-status.error{
+    color:var(--brick);
+    font-weight:700;
+  }
+  .reset-link{
+    font-size:11.5px;
+    color:var(--ink-soft);
+    background:none;
+    border:none;
+    text-decoration:underline;
+    cursor:pointer;
+    padding:4px;
+    flex-shrink:0;
+  }
+  .weekday-badge{
+    font-family:ui-rounded,'SF Pro Rounded',system-ui,sans-serif;
+    font-size:15px;
+    font-weight:700;
+  }
+  main{padding:18px;max-width:560px;margin:0 auto;}
+
+  .savebar{
+    margin-top:10px;
+  }
+  .save-btn{
+    width:100%;
+    font-family:ui-rounded,'SF Pro Rounded',system-ui,sans-serif;
+    font-size:17px;
+    font-weight:700;
+    color:#fff;
+    background:var(--teal);
+    border:none;
+    border-radius:14px;
+    padding:15px;
+    cursor:pointer;
+  }
+  .save-btn:active{background:#267C70;}
+
+  /* --- day panel --- */
+  .daypanel h2.daytitle{
+    font-size:27px;
+    margin:0 0 6px;
+    font-weight:700;
+  }
+  .day-status-row{
+    display:flex;
+    flex-wrap:wrap;
+    gap:7px;
+    margin-bottom:16px;
+  }
+  .holiday-banner{
+    background:var(--brick);
+    color:#fff;
+    font-weight:700;
+    font-size:14px;
+    padding:10px 14px;
+    border-radius:12px;
+    margin-bottom:14px;
+  }
+  .day-status-chip{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    font-size:12.5px;
+    font-weight:600;
+    padding:5px 12px;
+    border-radius:20px;
+    background:var(--line);
+    color:var(--ink-soft);
+  }
+  .day-status-chip .dot{
+    width:7px;
+    height:7px;
+    border-radius:50%;
+    background:currentColor;
+    opacity:0.6;
+  }
+  .day-status-chip.tone-ok{background:var(--teal-soft);color:#1F6D5E;}
+  .day-status-chip.tone-warn{background:var(--amber-soft);color:#8A5A0F;}
+  .day-status-chip.tone-alert{background:var(--brick-soft);color:#A23F2C;}
+  .day-status-chip.tone-info{background:var(--violet-soft);color:#5A4FA0;}
+  section.field{
+    margin-bottom:16px;
+    padding:16px 16px 18px;
+    border-radius:16px;
+    border:2px solid var(--line);
+  }
+  .field label.field-label{
+    display:block;
+    font-family:ui-rounded,'SF Pro Rounded',system-ui,sans-serif;
+    font-size:15px;
+    font-weight:600;
+    color:var(--ink);
+    margin-bottom:10px;
+  }
+  section.field.c-amber{background:var(--amber-soft);border-color:#F3D796;}
+  section.field.c-teal{background:var(--teal-soft);border-color:#AEE0D6;}
+  section.field.c-blue{background:var(--blue-soft);border-color:#B7DCEE;}
+  section.field.c-brick{background:var(--brick-soft);border-color:#F4C1B3;}
+  section.field.c-violet{background:var(--violet-soft);border-color:#CBC1F2;}
+  section.field.c-pink{background:var(--pink-soft);border-color:#F5BFD5;}
+
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;}
+  .chip{
+    padding:8px 15px;
+    border-radius:20px;
+    border:2px solid rgba(0,0,0,0.08);
+    background:#fff;
+    font-size:13.5px;
+    font-weight:600;
+    cursor:pointer;
+    color:var(--ink);
+  }
+  .chip.selected{
+    background:var(--teal);
+    border-color:var(--teal);
+    color:#fff;
+  }
+  select, input[type=text]{
+    font-family:-apple-system,system-ui,sans-serif;
+    font-size:14.5px;
+    padding:10px 10px;
+    border-radius:10px;
+    border:2px solid rgba(0,0,0,0.08);
+    background:#fff;
+    color:var(--ink);
+    width:100%;
+  }
+  textarea.autogrow{
+    font-family:-apple-system,system-ui,sans-serif;
+    font-size:14.5px;
+    padding:10px 10px;
+    border-radius:10px;
+    border:2px solid rgba(0,0,0,0.08);
+    background:#fff;
+    color:var(--ink);
+    width:100%;
+    resize:none;
+    overflow:hidden;
+    line-height:1.4;
+  }
+  .row2{display:flex;gap:10px;}
+  .row2 > div{flex:1;}
+  .subrow{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    margin-top:10px;
+    font-size:13.5px;
+  }
+  .subrow input[type=checkbox]{width:19px;height:19px;accent-color:var(--brick);}
+  .kidblock{
+    background:#fff;
+    border:2px solid rgba(0,0,0,0.06);
+    border-radius:12px;
+    padding:12px 14px;
+    margin-top:10px;
+  }
+  .kidblock .kidname{font-family:ui-rounded,'SF Pro Rounded',system-ui,sans-serif;font-weight:600;font-size:14px;margin-bottom:6px;color:var(--brick);}
+  .readiness-grid{display:flex;gap:10px;margin-top:2px;}
+  .readiness-grid > div{flex:1;}
+  .readiness-grid label{font-size:12px;color:var(--ink-soft);display:block;margin-bottom:5px;}
+  .exception-reason{margin-top:8px;}
+  .dua-note{
+    margin-top:10px;
+    padding:10px 12px;
+    background:#fff;
+    border:2px dashed var(--pink);
+    border-radius:10px;
+    font-size:13px;
+    font-weight:700;
+    color:#B4527A;
+  }
+  .add-btn{
+    font-family:ui-rounded,'SF Pro Rounded',system-ui,sans-serif;
+    font-size:13.5px;
+    font-weight:600;
+    color:#fff;
+    background:var(--violet);
+    border:none;
+    border-radius:10px;
+    padding:9px 14px;
+    cursor:pointer;
+    margin-top:4px;
+  }
+  .entry-card{
+    background:#fff;
+    border:2px solid rgba(0,0,0,0.06);
+    border-radius:12px;
+    padding:12px 14px;
+    margin-bottom:10px;
+  }
+  .entry-card .entry-top{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:8px;
+  }
+  .remove-btn{
+    background:none;
+    border:none;
+    color:var(--brick);
+    font-size:13px;
+    font-weight:600;
+    cursor:pointer;
+    padding:4px 6px;
+  }
+  .savestate{
+    text-align:center;
+    font-size:12px;
+    color:var(--ink-soft);
+    margin-top:24px;
+    min-height:16px;
+    padding:0 8px;
+  }
+  .savestate.error{
+    color:var(--brick);
+    font-weight:700;
+    font-size:13.5px;
+  }
+  .participant-hint{font-size:11.5px;color:var(--ink-soft);margin-top:4px;}
+  .bus-times-grid{
+    display:flex;
+    flex-wrap:wrap;
+    gap:6px;
+    margin-top:12px;
+  }
+  .bus-time-pill{
+    font-size:12.5px;
+    font-weight:600;
+    font-variant-numeric:tabular-nums;
+    background:#fff;
+    border:2px solid rgba(0,0,0,0.06);
+    border-radius:8px;
+    padding:5px 8px;
+  }
+  .photos-row{
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+    margin-top:10px;
+  }
+  .photo-thumb{
+    width:88px;
+  }
+  .photo-thumb img{
+    width:88px;
+    height:88px;
+    object-fit:cover;
+    border-radius:10px;
+    border:2px solid rgba(0,0,0,0.08);
+    display:block;
+  }
+  .photo-thumb .photo-name{
+    font-size:11px;
+    padding:5px 6px;
+    margin-top:4px;
+    width:88px;
+  }
+  .photo-thumb .photo-remove{
+    background:none;
+    border:none;
+    color:var(--brick);
+    font-size:11px;
+    font-weight:600;
+    cursor:pointer;
+    padding:2px 0;
+  }
+  .photo-add-btn{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    margin-top:10px;
+    font-family:ui-rounded,'SF Pro Rounded',system-ui,sans-serif;
+    font-size:13px;
+    font-weight:600;
+    color:var(--ink);
+    background:#fff;
+    border:2px dashed rgba(0,0,0,0.15);
+    border-radius:10px;
+    padding:8px 12px;
+    cursor:pointer;
+  }
+  .photo-add-btn input[type=file]{
+    display:none;
+  }
+  .photo-status{
+    font-size:11.5px;
+    color:var(--ink-soft);
+    margin-left:8px;
+  }  .pin-gate{
+    position:fixed;
+    inset:0;
+    z-index:1000;
+    background:var(--paper);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    padding:24px;
+    text-align:center;
+  }
+  .pin-gate .emoji{font-size:44px;margin-bottom:8px;}
+  .pin-gate h2{margin:0 0 6px;font-size:24px;color:var(--teal);}
+  .pin-gate p{margin:0 0 18px;color:var(--ink-soft);font-size:14px;}
+  .pin-gate input{
+    font-size:32px;
+    letter-spacing:14px;
+    text-align:center;
+    width:180px;
+    padding:14px 10px;
+    border-radius:12px;
+    border:2px solid var(--line);
+    background:#fff;
+  }
+  .pin-gate button{
+    margin-top:16px;
+    font-family:ui-rounded,'SF Pro Rounded',system-ui,sans-serif;
+    font-size:16px;
+    font-weight:700;
+    color:#fff;
+    background:var(--teal);
+    border:none;
+    border-radius:12px;
+    padding:12px 28px;
+    cursor:pointer;
+  }
+  .pin-gate .error{color:var(--brick);margin-top:12px;font-size:13px;font-weight:600;min-height:16px;}
+</style>
+</head>
+<body>
+
+<div class="pin-gate" id="pinGate">
+  <div class="emoji">🔒</div>
+  <h2 id="pinTitle">Schulwegplan</h2>
+  <p id="pinPrompt">Bitte 4-stelligen Code eingeben</p>
+  <input type="tel" inputmode="numeric" maxlength="4" id="pinInput" autocomplete="off">
+  <br>
+  <button type="button" id="pinSubmit">Freischalten</button>
+  <div class="error" id="pinError"></div>
+</div>
+
+<header>
+  <h1 id="appTitle">🎒 Schulwegplan <span style="font-size:13px;color:var(--ink-soft);font-weight:400;">v4</span></h1>
+  <div class="datebar" id="datebar">
+    <button class="datenav-btn" id="prevDayBtn" aria-label="Vorheriger Tag">‹</button>
+    <input type="date" id="dateInput">
+    <span class="weekday-chip" id="weekdayChip"></span>
+    <button class="datenav-btn" id="nextDayBtn" aria-label="Nächster Tag">›</button>
+  </div>
+  <div class="dateinfo-row">
+    <span class="weekday-badge" id="weekdayBadge"></span>
+    <span class="weather-chip" id="weatherChip" style="display:none;"></span>
+    <button class="lang-btn" id="langAt" title="Deutsch">🇦🇹</button>
+    <button class="lang-btn" id="langTr" title="Türkçe">🇹🇷</button>
+    <button class="today-btn" id="todayBtn">Heute</button>
+  </div>
+  <div class="topsave-row">
+    <button type="button" class="save-btn-top" id="saveDayBtnTop">💾 Speichern</button>
+    <span class="topsave-status" id="topSaveStatus"></span>
+    <button type="button" class="reset-link" id="resetDayBtn">Tag leeren</button>
+  </div>
+</header>
+
+<main>
+  <div class="daypanel" id="daypanel"></div>
+  <div class="savestate" id="saveState"></div>
+  <div id="globalPanel"></div>
+</main>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+<script>
+// ---- Firebase-Anbindung: ersetzt Claudes Speicher, funktioniert ohne Konto für die Nutzer ----
+const firebaseConfig = {
+  apiKey: "AIzaSyBZUgoJIh2flCdR4lNU8q4VxeB4G-St2Y0",
+  authDomain: "schulwegend.firebaseapp.com",
+  databaseURL: "https://schulwegend-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "schulwegend",
+  storageBucket: "schulwegend.firebasestorage.app",
+  messagingSenderId: "662513011948",
+  appId: "1:662513011948:web:43ab91735c9cfaa62769c9"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+// Nachgebautes storage-Objekt mit derselben Schnittstelle wie vorher (get/set/delete),
+// damit der Rest der App unverändert bleibt.
+const cloudStore = {
+  async get(key){
+    const snap = await db.ref(key.replace(/:/g, "_")).once("value");
+    if(snap.val() === null || typeof snap.val() === "undefined"){
+      throw new Error("not found");
+    }
+    return { value: JSON.stringify(snap.val()) };
+  },
+  async set(key, valueStr){
+    await db.ref(key.replace(/:/g, "_")).set(JSON.parse(valueStr));
+    return { key, value: valueStr };
+  },
+  async delete(key){
+    await db.ref(key.replace(/:/g, "_")).remove();
+    return { key, deleted: true };
+  }
+};
+
+
+const NAMES_BASE = ["Fırat","Ebru","Hande","Ridvan"];
+const GRANDPARENT_NAMES = ["Murat","Sevgi"];
+let grandparentsEnabled = false;
+function getActiveNames(){
+  return grandparentsEnabled ? NAMES_BASE.concat(GRANDPARENT_NAMES) : NAMES_BASE.slice();
+}
+const WEEKDAY_INFO_DE = {
+  1:{label:"Montag",     short:"Mo", color:"#EF6F5B"},
+  2:{label:"Dienstag",   short:"Di", color:"#F2A93B"},
+  3:{label:"Mittwoch",   short:"Mi", color:"#2E9E8F"},
+  4:{label:"Donnerstag", short:"Do", color:"#4FA3D1"},
+  5:{label:"Freitag",    short:"Fr", color:"#8B7FD9"},
+  6:{label:"Samstag",    short:"Sa", color:"#B9B4A6"},
+  0:{label:"Sonntag",    short:"So", color:"#B9B4A6"}
+};
+const WEEKDAY_INFO_TR = {
+  1:{label:"Pazartesi", short:"Pt", color:"#EF6F5B"},
+  2:{label:"Salı",      short:"Sa", color:"#F2A93B"},
+  3:{label:"Çarşamba",  short:"Ça", color:"#2E9E8F"},
+  4:{label:"Perşembe",  short:"Pe", color:"#4FA3D1"},
+  5:{label:"Cuma",      short:"Cu", color:"#8B7FD9"},
+  6:{label:"Cumartesi", short:"Ct", color:"#B9B4A6"},
+  0:{label:"Pazar",     short:"Pz", color:"#B9B4A6"}
+};
+function getWeekdayInfo(){ return LANG === "tr" ? WEEKDAY_INFO_TR : WEEKDAY_INFO_DE; }
+
+function timeOptions(startH,endH,stepMin){
+  const out=[""];
+  for(let m=startH*60; m<=endH*60; m+=stepMin){
+    const h=String(Math.floor(m/60)).padStart(2,"0");
+    const mm=String(m%60).padStart(2,"0");
+    out.push(`${h}:${mm}`);
+  }
+  return out;
+}
+const TIMES_15 = timeOptions(6,21,15);
+const TIMES_5  = timeOptions(6,21,5);
+
+// ---- Statische Busabfahrten 64A, Montag-Freitag (aus Wiener-Linien-Fahrplan) ----
+const BUS_TO_SCHOOL = ["06:01","06:16","06:31","06:46","07:01","07:11","07:21","07:31","07:41","07:51","08:01","08:11","08:21","08:31","08:41","08:51","09:01","09:16","09:31","09:46","10:01","10:16","10:31","10:46","11:01","11:16","11:31","11:46","12:01","12:16","12:31","12:46","13:01","13:16","13:31","13:46","14:01","14:16","14:31","14:46","15:01","15:16","15:31","15:46","16:01","16:16","16:30","16:45","17:00","17:15","17:30","17:45","18:00","18:16","18:31","18:46","19:01","19:18","19:33","19:48","20:08","20:30","21:00","21:30"];
+const BUS_FROM_SCHOOL = ["06:13","06:25","06:35","06:45","06:55","07:04","07:14","07:24","07:34","07:44","07:54","08:04","08:14","08:27","08:42","08:58","09:13","09:28","09:43","09:58","10:13","10:28","10:43","10:58","11:13","11:28","11:43","11:58","12:13","12:28","12:43","12:58","13:13","13:28","13:43","13:58","14:13","14:28","14:43","14:58","15:13","15:28","15:43","15:57","16:12","16:27","16:42","16:57","17:12","17:27","17:42","17:57","18:12","18:27","18:42","18:58","19:14","19:29","19:44","19:59","20:18","20:44","21:14","21:44"];
+
+// ---- Österreichische Feiertage (Wien) ----
+function easterSunday(year){
+  const a = year % 19, b = Math.floor(year/100), c = year % 100;
+  const d = Math.floor(b/4), e = b % 4, f = Math.floor((b+8)/25);
+  const g = Math.floor((b-f+1)/3), h = (19*a+b-d-g+15) % 30;
+  const i = Math.floor(c/4), k = c % 4, l = (32+2*e+2*i-h-k) % 7;
+  const m = Math.floor((a+11*h+22*l)/451);
+  const month = Math.floor((h+l-7*m+114)/31);
+  const day = ((h+l-7*m+114) % 31) + 1;
+  return new Date(year, month-1, day);
+}
+function addDaysToDate(d, n){ const nd = new Date(d); nd.setDate(nd.getDate()+n); return nd; }
+function austrianHolidays(year){
+  const easter = easterSunday(year);
+  const fixed = [
+    [0,1,"Neujahr"], [0,6,"Heilige Drei Könige"], [4,1,"Staatsfeiertag"],
+    [7,15,"Mariä Himmelfahrt"], [9,26,"Nationalfeiertag"], [10,1,"Allerheiligen"],
+    [11,8,"Mariä Empfängnis"], [11,25,"Christtag"], [11,26,"Stefanitag"]
+  ];
+  const map = {};
+  fixed.forEach(([m,d,name])=>{ map[dateKey(new Date(year,m,d))] = name; });
+  map[dateKey(addDaysToDate(easter,1))]  = "Ostermontag";
+  map[dateKey(addDaysToDate(easter,39))] = "Christi Himmelfahrt";
+  map[dateKey(addDaysToDate(easter,50))] = "Pfingstmontag";
+  map[dateKey(addDaysToDate(easter,60))] = "Fronleichnam";
+  return map;
+}
+let HOLIDAYS = {};
+function refreshHolidays(year){
+  HOLIDAYS = Object.assign({}, austrianHolidays(year-1), austrianHolidays(year), austrianHolidays(year+1));
+}
+function holidayName(date){
+  return HOLIDAYS[dateKey(date)] || null;
+}
+
+function emptyDay(){
+  return {
+    bring:{people:[], time:"08:00"},
+    abhol:{people:[], time:"16:30"},
+    readiness:{child:"", time:""},
+    exceptions:{
+      eflin:{noBring:false, noBringReason:"", noAbhol:false, noAbholReason:""},
+      nezir:{noBring:false, noBringReason:"", noAbhol:false, noAbholReason:""}
+    },
+    schoolEvents:[],
+    notices:[],
+    dua:{mustPickup:false, wishTime:"", byTime:"", notices:[], kindergartenEvents:[]},
+    elternHinweise:[]
+  };
+}
+
+function noticeText(n){
+  return typeof n === "string" ? n : (n && n.text) || "";
+}
+
+function normalizePhotos(arr){
+  return Array.isArray(arr) ? arr.map(p=>({url:p.url||"", name:p.name||""})) : [];
+}
+
+function normalizeDuaNotice(n){
+  if(typeof n === "string") return {text:n, photos:[]};
+  return {text:n.text||"", photos:normalizePhotos(n.photos)};
+}
+
+function normalizeNotice(n){
+  if(typeof n === "string") return {text:n, kids:[], photos:[], location:""};
+  return {text:n.text||"", kids:Array.isArray(n.kids)?n.kids:[], photos:normalizePhotos(n.photos), location:n.location||""};
+}
+
+function normalizeKindergartenEvent(k){
+  return {timeStart:k.timeStart||"", timeEnd:k.timeEnd||"", text:k.text||"", photos:normalizePhotos(k.photos)};
+}
+
+function normalizeElternHinweis(e){
+  return {person:e.person||"", text:e.text||"", timeStart:e.timeStart||"", timeEnd:e.timeEnd||"", photos:normalizePhotos(e.photos)};
+}
+
+function mergeDay(parsed){
+  const day = emptyDay();
+  day.bring = Object.assign({people:[],time:""}, parsed.bring||{});
+  day.abhol = Object.assign({people:[],time:""}, parsed.abhol||{});
+  const oldReadiness = parsed.readiness || {};
+  if(typeof oldReadiness.child !== "undefined"){
+    day.readiness = Object.assign({child:"",time:""}, oldReadiness);
+  }else if(oldReadiness.eflin){
+    day.readiness = {child:"eflin", time:oldReadiness.eflin};
+  }else if(oldReadiness.nezir){
+    day.readiness = {child:"nezir", time:oldReadiness.nezir};
+  }
+  day.exceptions = {
+    eflin: Object.assign({noBring:false,noBringReason:"",noAbhol:false,noAbholReason:""}, (parsed.exceptions||{}).eflin||{}),
+    nezir: Object.assign({noBring:false,noBringReason:"",noAbhol:false,noAbholReason:""}, (parsed.exceptions||{}).nezir||{})
+  };
+  day.dua = Object.assign({mustPickup:false,wishTime:"",byTime:"",notices:[],kindergartenEvents:[]}, parsed.dua||{});
+  day.dua.notices = Array.isArray(day.dua.notices) ? day.dua.notices.map(normalizeDuaNotice) : [];
+  day.dua.kindergartenEvents = Array.isArray(day.dua.kindergartenEvents) ? day.dua.kindergartenEvents.map(normalizeKindergartenEvent) : [];
+  day.schoolEvents = Array.isArray(parsed.schoolEvents) ? parsed.schoolEvents.map(ev=>{
+    const merged = Object.assign({name:"",timeStart:"",timeEnd:"",hasEndTime:false,location:"",participants:[],kids:[],photos:[]}, ev);
+    if(!merged.timeStart && ev.time) merged.timeStart = ev.time; // altes Format "time" übernehmen
+    merged.photos = normalizePhotos(merged.photos);
+    return merged;
+  }) : [];
+  day.notices = Array.isArray(parsed.notices) ? parsed.notices.map(normalizeNotice) : [];
+  day.elternHinweise = Array.isArray(parsed.elternHinweise) ? parsed.elternHinweise.map(normalizeElternHinweis) : [];
+  return day;
+}
+
+function dateKey(d){
+  const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,"0"), day=String(d.getDate()).padStart(2,"0");
+  return `${y}-${m}-${day}`;
+}
+function addDays(d, n){
+  const nd = new Date(d);
+  nd.setDate(nd.getDate()+n);
+  return nd;
+}
+function startOfToday(){
+  const d = new Date();
+  d.setHours(0,0,0,0);
+  return d;
+}
+function isWeekend(d){
+  const wd = d.getDay();
+  return wd===0 || wd===6;
+}
+function snapToWeekday(d){
+  // Samstag/Sonntag überspringen, landet auf dem nächsten Montag
+  const nd = new Date(d);
+  if(nd.getDay()===6) nd.setDate(nd.getDate()+2);
+  else if(nd.getDay()===0) nd.setDate(nd.getDate()+1);
+  return nd;
+}
+function stepWeekday(d, direction){
+  // einen Tag in Richtung "direction" (+1/-1), Wochenenden werden übersprungen
+  const nd = new Date(d);
+  do{
+    nd.setDate(nd.getDate()+direction);
+  }while(isWeekend(nd));
+  return nd;
+}
+
+const MIN_DATE = addDays(startOfToday(), -365);
+const MAX_DATE = addDays(startOfToday(), 365);
+
+let currentDate = snapToWeekday(startOfToday());
+let currentDay = emptyDay();
+let loadToken = 0;
+let dirty = false;
+
+function clampDate(){
+  if(currentDate < MIN_DATE) currentDate = new Date(MIN_DATE);
+  if(currentDate > MAX_DATE) currentDate = new Date(MAX_DATE);
+  currentDate = snapToWeekday(currentDate);
+}
+
+function confirmLeaveIfDirty(){
+  // Kein blockierender Dialog mehr (führte in mancher Vorschau-Umgebung zu Fehlern).
+  // Der Hinweistext "Ungespeicherte Änderungen" bleibt sichtbar, bis gespeichert wird.
+  return true;
+}
+
+function setSaveState(text, isError){
+  const el = document.getElementById("saveState");
+  el.textContent = text;
+  el.classList.toggle("error", !!isError);
+  const topEl = document.getElementById("topSaveStatus");
+  if(topEl){
+    topEl.textContent = text;
+    topEl.classList.toggle("error", !!isError);
+  }
+}
+
+async function resetCurrentDay(){
+  const label = dateKey(currentDate);
+  const ok = confirm(`${label} ${t("confirmClearDay")}`);
+  if(!ok) return;
+  const key = "tag:" + label;
+  try{
+    await cloudStore.delete(key);
+  }catch(e){
+    // gab evtl. noch keinen gespeicherten Eintrag für diesen Tag — kein Problem
+  }
+  currentDay = emptyDay();
+  dirty = false;
+  setSaveState(t("statusDayCleared"), false);
+  renderDay();
+}
+
+function performSave(){
+  const errors = validateDay(currentDay);
+  if(errors.length){
+    setSaveState(t("statusPleaseComplete") + errors.join(" · "), true);
+    return;
+  }
+  saveNow(1);
+}
+
+async function loadDay(){
+  clampDate();
+  const token = ++loadToken;
+  const key = "tag:" + dateKey(currentDate);
+  setSaveState(t("statusLoading"), false);
+  dirty = false;
+  renderDateNav();
+
+  let loaded = emptyDay();
+  try{
+    const res = await cloudStore.get(key);
+    if(res && res.value){
+      loaded = mergeDay(JSON.parse(res.value));
+    }
+  }catch(e){
+    // Für diesen Tag ist noch nichts gespeichert — das ist der Normalfall, kein echter Fehler.
+  }
+  if(token !== loadToken) return; // eine neuere Auswahl läuft bereits
+  currentDay = loaded;
+  setSaveState("", false);
+  renderDay();
+}
+
+function markDirty(){
+  dirty = true;
+  setSaveState(t("statusUnsaved"), false);
+}
+
+function validateDay(day){
+  const errors = [];
+  day.schoolEvents.forEach((ev, i)=>{
+    if(!ev.name.trim()) errors.push(`Termin ${i+1}: Bezeichnung fehlt`);
+    if(ev.kids.length===0) errors.push(`Termin ${i+1}: Kind wählen`);
+  });
+  day.notices.forEach((n, i)=>{
+    if(!n.text.trim()) errors.push(`Hinweis ${i+1}: Text fehlt`);
+    if(n.kids.length===0) errors.push(`Hinweis ${i+1}: Kind wählen`);
+  });
+  return errors;
+}
+
+async function saveNow(attempt){
+  const key = "tag:" + dateKey(currentDate);
+  setSaveState(attempt===1 ? t("statusSaving") : t("statusSavingRetry") + " " + attempt + ")", false);
+  try{
+    const result = await cloudStore.set(key, JSON.stringify(currentDay));
+    if(result){
+      dirty = false;
+      setSaveState(t("statusSaved"), false);
+    }else{
+      throw new Error("kein Ergebnis vom Speicher");
+    }
+  }catch(e){
+    if(attempt < 3){
+      setTimeout(()=>saveNow(attempt+1), 800 * attempt);
+    }else{
+      const msg = (e && e.message) ? e.message : "unbekannter Fehler";
+      setSaveState(t("statusSaveFailed") + msg + t("statusRetry"), true);
+    }
+  }
+}
+
+function renderDateNav(){
+  const input = document.getElementById("dateInput");
+  input.value = dateKey(currentDate);
+  input.min = dateKey(MIN_DATE);
+  input.max = dateKey(MAX_DATE);
+  const wd = currentDate.getDay();
+  const info = getWeekdayInfo()[wd];
+  const badge = document.getElementById("weekdayBadge");
+  badge.textContent = info.label;
+  badge.style.color = info.color;
+  const chip = document.getElementById("weekdayChip");
+  chip.textContent = info.short;
+  chip.style.background = info.color;
+  renderWeatherChip();
+}
+
+/* ---------------- Wetter (nächste 5 Tage) ---------------- */
+const WEATHER_LAT = 48.135;   // Liesing, Wien
+const WEATHER_LON = 16.283;
+let weatherByDate = {};
+let weatherError = "";
+
+function weatherEmoji(code){
+  if(code===0) return "☀️";
+  if(code===1||code===2) return "🌤️";
+  if(code===3) return "☁️";
+  if(code===45||code===48) return "🌫️";
+  if(code>=51&&code<=57) return "🌦️";
+  if(code>=61&&code<=67) return "🌧️";
+  if(code>=71&&code<=77) return "❄️";
+  if(code>=80&&code<=82) return "🌦️";
+  if(code>=85&&code<=86) return "🌨️";
+  if(code>=95) return "⛈️";
+  return "🌡️";
+}
+
+async function loadWeather(){
+  try{
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${WEATHER_LAT}&longitude=${WEATHER_LON}&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=Europe%2FVienna&forecast_days=7`;
+    const res = await fetch(url);
+    if(!res.ok) throw new Error("HTTP " + res.status);
+    const data = await res.json();
+    const days = data.daily;
+    if(!days || !days.time) throw new Error("unerwartetes Datenformat");
+    const map = {};
+    days.time.forEach((dateStr, i)=>{
+      map[dateStr] = {
+        code: days.weather_code[i],
+        tmax: Math.round(days.temperature_2m_max[i]),
+        tmin: Math.round(days.temperature_2m_min[i])
+      };
+    });
+    weatherByDate = map;
+    weatherError = "";
+  }catch(e){
+    weatherError = (e && e.message) ? e.message : "unbekannter Fehler";
+  }
+  renderWeatherChip();
+}
+
+function renderWeatherChip(){
+  const chip = document.getElementById("weatherChip");
+  if(!chip) return;
+  const diffDays = Math.round((currentDate - startOfToday()) / 86400000);
+  const withinRange = diffDays>=0 && diffDays<=4;
+  if(!withinRange){
+    chip.style.display = "none";
+    return;
+  }
+  const w = weatherByDate[dateKey(currentDate)];
+  if(w){
+    chip.textContent = `${weatherEmoji(w.code)} ${w.tmin}° / ${w.tmax}°`;
+    chip.style.display = "inline-block";
+  }else if(weatherError){
+    chip.textContent = "Wetter nicht verfügbar (" + weatherError + ")";
+    chip.style.display = "inline-block";
+  }else{
+    chip.style.display = "none";
+  }
+}
+
+function selectHtml(id, options, value){
+  const opts = options.map(o=>{
+    const label = o===""? t("selectPlaceholder") : o + (LANG==="tr" ? "" : " Uhr");
+    return `<option value="${o}" ${o===value?"selected":""}>${label}</option>`;
+  }).join("");
+  return `<select id="${id}">${opts}</select>`;
+}
+
+const PERSON_COLORS = {
+  "Fırat":  "#4FA3D1",
+  "Ebru":   "#EE7FA8",
+  "Hande":  "#8B7FD9",
+  "Ridvan": "#F2A93B",
+  "Murat":  "#2E9E8F",
+  "Sevgi":  "#C97D2E"
+};
+function nameChipHtml(n, isSelected){
+  const style = isSelected ? ` style="background:${PERSON_COLORS[n]};border-color:${PERSON_COLORS[n]};color:#fff;"` : "";
+  return `<button type="button" class="chip ${isSelected?"selected":""}" data-name="${n}"${style}>${n}</button>`;
+}
+function setChipColor(chip, name, isSelected){
+  chip.classList.toggle("selected", isSelected);
+  if(isSelected){
+    chip.style.background = PERSON_COLORS[name];
+    chip.style.borderColor = PERSON_COLORS[name];
+    chip.style.color = "#fff";
+  }else{
+    chip.style.background = "";
+    chip.style.borderColor = "";
+    chip.style.color = "";
+  }
+}
+
+function chipsHtml(groupId, selected){
+  return `<div class="chips" id="${groupId}">` +
+    getActiveNames().map(n=> nameChipHtml(n, selected.includes(n))).join("") +
+    `</div>`;
+}
+
+function dayStatusChips(day){
+  const chips = [];
+
+  if(day.bring.people.length>0){
+    chips.push({text:t("bringt")+": " + day.bring.people.join(", "), tone:"ok"});
+  }else{
+    chips.push({text:t("bringerFehlt"), tone:"warn"});
+  }
+
+  if(day.abhol.people.length>0){
+    chips.push({text:t("holtAb")+": " + day.abhol.people.join(", "), tone:"ok"});
+  }else{
+    chips.push({text:t("holerFehlt"), tone:"warn"});
+  }
+
+  if(!day.readiness.child || !day.readiness.time){
+    chips.push({text:t("bereitFehlt"), tone:"warn"});
+  }
+
+  const hasException = day.exceptions.eflin.noBring || day.exceptions.eflin.noAbhol
+    || day.exceptions.nezir.noBring || day.exceptions.nezir.noAbhol;
+  if(hasException) chips.push({text:t("ausnahmeBeachten"), tone:"alert"});
+
+  if(day.schoolEvents.length>0) chips.push({text:t("terminVorhanden"), tone:"info"});
+  if(day.notices.length>0) chips.push({text:t("hinweisVorhanden"), tone:"info"});
+  if(day.dua.mustPickup) chips.push({text:t("duaBeachten"), tone:"alert"});
+  if(day.elternHinweise && day.elternHinweise.length>0) chips.push({text:t("elternHinzugefuegt"), tone:"info"});
+
+  return chips;
+}
+
+function renderDay(){
+  const wd = currentDate.getDay();
+  const info = getWeekdayInfo()[wd];
+  const dateLabel = currentDate.toLocaleDateString("de-AT", {day:"numeric", month:"long", year:"numeric"});
+  const day = currentDay;
+  const panel = document.getElementById("daypanel");
+  const chips = dayStatusChips(day);
+  const holiday = holidayName(currentDate);
+
+  panel.innerHTML = `
+    <h2 class="daytitle" style="color:${info.color}">${info.label}, ${dateLabel}</h2>
+    ${holiday ? `<div class="holiday-banner">🎌 ${t("holiday")} (${escapeHtml(holiday)}) — ${t("holidaySchoolsClosed")}</div>` : ""}
+    <div class="day-status-row">
+      ${chips.map(c=>`<span class="day-status-chip tone-${c.tone}"><span class="dot"></span>${escapeHtml(c.text)}</span>`).join("")}
+    </div>
+
+    <section class="field c-amber">
+      <label class="field-label">${t("bring")}</label>
+      ${chipsHtml("bringChips", day.bring.people)}
+      <div class="row2">
+        <div>${selectHtml("bringTime", TIMES_15, day.bring.time)}</div>
+      </div>
+    </section>
+
+    <section class="field c-blue">
+      <label class="field-label">${t("abhol")}</label>
+      ${chipsHtml("abholChips", day.abhol.people)}
+      <div class="row2">
+        <div>${selectHtml("abholTime", TIMES_15, day.abhol.time)}</div>
+      </div>
+    </section>
+
+    <section class="field c-teal">
+      <label class="field-label">${t("readiness")}</label>
+      <p class="participant-hint" style="margin-bottom:8px;">${t("readinessHint")}</p>
+      <div class="chips" id="readinessChildChips">
+        <button type="button" class="chip ${day.readiness.child==="eflin"?"selected":""}" data-child="eflin"${day.readiness.child==="eflin"?` style="background:${KID_COLORS.eflin};border-color:${KID_COLORS.eflin};color:#fff;"`:""}>Eflin</button>
+        <button type="button" class="chip ${day.readiness.child==="nezir"?"selected":""}" data-child="nezir"${day.readiness.child==="nezir"?` style="background:${KID_COLORS.nezir};border-color:${KID_COLORS.nezir};color:#fff;"`:""}>Nezir</button>
+      </div>
+      <div class="row2" id="readyTimeWrap" style="margin-top:10px;display:${day.readiness.child?"flex":"none"};">
+        <div>${selectHtml("readyTime", TIMES_5, day.readiness.time)}</div>
+      </div>
+    </section>
+
+    <section class="field c-violet">
+      <label class="field-label">${t("events")}</label>
+      <div id="eventsList"></div>
+      <button type="button" class="add-btn" id="addEventBtn">${t("addEvent")}</button>
+    </section>
+
+    <section class="field c-amber">
+      <label class="field-label">${t("notices")}</label>
+      <div id="noticesList"></div>
+      <button type="button" class="add-btn" id="addNoticeBtn">${t("addNotice")}</button>
+    </section>
+
+    <section class="field c-brick">
+      <label class="field-label">${t("exceptions")}</label>
+      ${kidExceptionBlock("eflin","Eflin", day.exceptions.eflin)}
+      ${kidExceptionBlock("nezir","Nezir", day.exceptions.nezir)}
+    </section>
+
+    <section class="field c-pink">
+      <label class="field-label">${t("dua")}</label>
+      <div class="subrow" style="margin-top:0;">
+        <input type="checkbox" id="duaPickup" ${day.dua.mustPickup?"checked":""}>
+        <label for="duaPickup">${t("duaCheckbox")}</label>
+      </div>
+      <div id="duaTimeWrap" style="margin-top:10px;display:${day.dua.mustPickup?"block":"none"};">
+        <div class="row2">
+          <div>
+            <label class="participant-hint" style="display:block;margin-bottom:4px;">${t("wishTime")}</label>
+            ${selectHtml("duaWishTime", TIMES_15, day.dua.wishTime)}
+          </div>
+          <div>
+            <label class="participant-hint" style="display:block;margin-bottom:4px;">${t("latest")}</label>
+            ${selectHtml("duaTime", TIMES_15, day.dua.byTime)}
+          </div>
+        </div>
+      </div>
+      <div id="duaNote"></div>
+      <label class="field-label" style="margin-top:14px;font-size:13px;">${t("kindergarten")}</label>
+      <div id="duaEventsList"></div>
+      <button type="button" class="add-btn" id="addDuaEventBtn">${t("addEvent")}</button>
+      <label class="field-label" style="margin-top:14px;font-size:13px;">${t("duaNotices")}</label>
+      <div id="duaNoticesList"></div>
+      <button type="button" class="add-btn" id="addDuaNoticeBtn">${t("addNotice")}</button>
+    </section>
+
+    <section class="field c-blue">
+      <label class="field-label">${t("eltern")}</label>
+      <p class="participant-hint" style="margin-bottom:8px;">${t("elternHint")}</p>
+      <div id="elternHinweiseList"></div>
+      <button type="button" class="add-btn" id="addElternHinweisBtn">${t("addEltern")}</button>
+    </section>
+
+    <div class="savebar">
+      <button type="button" class="save-btn" id="saveDayBtn">${t("save")}</button>
+    </div>
+  `;
+
+  updateDuaNote();
+  renderEventsList();
+  renderNoticesList();
+  renderDuaEventsList();
+  renderDuaNoticesList();
+  renderElternHinweiseList();
+  bindEvents();
+}
+
+function renderEventsList(){
+  const day = currentDay;
+  const wrap = document.getElementById("eventsList");
+  wrap.innerHTML = day.schoolEvents.map((ev, idx)=>`
+    <div class="entry-card" data-idx="${idx}">
+      <div class="entry-top">
+        <textarea class="ev-name autogrow" rows="1" placeholder="Bezeichnung, z. B. Elternabend" style="flex:1;">${escapeHtml(ev.name)}</textarea>
+        <button type="button" class="remove-btn ev-remove">${t("remove")}</button>
+      </div>
+      <div class="row2" style="margin-top:10px;">
+        <div>${selectHtml("evTimeStart"+idx, TIMES_15, ev.timeStart)}</div>
+        ${ev.hasEndTime ? `<div>${selectHtml("evTimeEnd"+idx, TIMES_15, ev.timeEnd)}</div>` : ""}
+      </div>
+      <div class="subrow">
+        <input type="checkbox" class="ev-hasEndTime" ${ev.hasEndTime?"checked":""}>
+        <label>${t("endTime")}</label>
+      </div>
+      <input type="text" class="ev-location" placeholder="${t("locEvent")}" value="${escapeHtml(ev.location)}" style="margin-top:10px;">
+      <label class="field-label" style="margin-top:12px;font-size:13px;">${t("participants")}</label>
+      <div class="chips ev-chips">${getActiveNames().map(n=>nameChipHtml(n, ev.participants.includes(n))).join("")}</div>
+      <label class="field-label" style="margin-top:12px;font-size:13px;">${t("whichKid")}</label>
+      <div class="chips ev-kid-chips">${kidChips(ev.kids)}</div>
+      <label class="field-label" style="margin-top:12px;font-size:13px;">${t("photosEvent")}</label>
+      ${photosHtml(ev.photos)}
+    </div>
+  `).join("") || `<p class="participant-hint">${t("noEvent")}</p>`;
+
+  wrap.querySelectorAll(".entry-card").forEach(card=>{
+    const idx = Number(card.dataset.idx);
+    const ev = day.schoolEvents[idx];
+    card.querySelector(".ev-name").oninput = e=>{ ev.name = e.target.value; autoGrow(e.target); markDirty(); };
+    card.querySelector(`#evTimeStart${idx}`).onchange = e=>{ ev.timeStart = e.target.value; markDirty(); };
+    const endSelect = card.querySelector(`#evTimeEnd${idx}`);
+    if(endSelect) endSelect.onchange = e=>{ ev.timeEnd = e.target.value; markDirty(); };
+    card.querySelector(".ev-hasEndTime").onchange = e=>{
+      ev.hasEndTime = e.target.checked;
+      markDirty();
+      renderEventsList();
+    };
+    card.querySelector(".ev-location").oninput = e=>{ ev.location = e.target.value; markDirty(); };
+    card.querySelector(".ev-remove").onclick = ()=>{ day.schoolEvents.splice(idx,1); renderEventsList(); markDirty(); };
+    card.querySelectorAll(".ev-chips .chip").forEach(chip=>{
+      chip.onclick = ()=>{
+        const n = chip.dataset.name;
+        const i = ev.participants.indexOf(n);
+        if(i>-1) ev.participants.splice(i,1); else ev.participants.push(n);
+        setChipColor(chip, n, ev.participants.includes(n));
+        markDirty();
+      };
+    });
+    card.querySelectorAll(".ev-kid-chips .chip").forEach(chip=>{
+      chip.onclick = ()=>{
+        const k = chip.dataset.kid;
+        const i = ev.kids.indexOf(k);
+        if(i>-1) ev.kids.splice(i,1); else ev.kids.push(k);
+        setKidChipColor(chip, k, ev.kids.includes(k));
+        markDirty();
+      };
+    });
+    bindPhotoWidget(card, ev.photos, `photos/${dateKey(currentDate)}/termin${idx}`, renderEventsList);
+  });
+  initAutoGrow(wrap);
+}
+
+const KID_COLORS = { eflin:"#EE7FA8", nezir:"#4FA3D1" };
+const KID_LABELS = { eflin:"Eflin", nezir:"Nezir" };
+function kidChipHtml(kidKey, isSelected){
+  const style = isSelected ? ` style="background:${KID_COLORS[kidKey]};border-color:${KID_COLORS[kidKey]};color:#fff;"` : "";
+  return `<button type="button" class="chip ${isSelected?"selected":""}" data-kid="${kidKey}"${style}>${KID_LABELS[kidKey]}</button>`;
+}
+function setKidChipColor(chip, kidKey, isSelected){
+  chip.classList.toggle("selected", isSelected);
+  if(isSelected){
+    chip.style.background = KID_COLORS[kidKey];
+    chip.style.borderColor = KID_COLORS[kidKey];
+    chip.style.color = "#fff";
+  }else{
+    chip.style.background = "";
+    chip.style.borderColor = "";
+    chip.style.color = "";
+  }
+}
+function kidChips(selectedKids){
+  return ["eflin","nezir"].map(k=> kidChipHtml(k, selectedKids.includes(k))).join("");
+}
+
+function renderNoticesList(){
+  const day = currentDay;
+  const wrap = document.getElementById("noticesList");
+  wrap.innerHTML = day.notices.map((n, idx)=>`
+    <div class="entry-card" data-idx="${idx}">
+      <div class="entry-top">
+        <textarea class="notice-text autogrow" rows="1" placeholder="z. B. Turnsackerl mitnehmen" style="flex:1;">${escapeHtml(n.text)}</textarea>
+        <button type="button" class="remove-btn notice-remove">${t("remove")}</button>
+      </div>
+      <label class="field-label" style="margin-top:10px;font-size:13px;">${t("whichKid")}</label>
+      <div class="chips notice-kid-chips">${kidChips(n.kids)}</div>
+      <input type="text" class="notice-location" placeholder="${t("locNotice")}" value="${escapeHtml(n.location)}" style="margin-top:10px;">
+      <label class="field-label" style="margin-top:10px;font-size:13px;">Fotos</label>
+      ${photosHtml(n.photos)}
+    </div>
+  `).join("") || `<p class="participant-hint">${t("noNotice")}</p>`;
+
+  wrap.querySelectorAll(".entry-card").forEach(card=>{
+    const idx = Number(card.dataset.idx);
+    card.querySelector(".notice-text").oninput = e=>{ day.notices[idx].text = e.target.value; autoGrow(e.target); markDirty(); };
+    card.querySelector(".notice-location").oninput = e=>{ day.notices[idx].location = e.target.value; markDirty(); };
+    card.querySelector(".notice-remove").onclick = ()=>{ day.notices.splice(idx,1); renderNoticesList(); markDirty(); };
+    card.querySelectorAll(".notice-kid-chips .chip").forEach(chip=>{
+      chip.onclick = ()=>{
+        const k = chip.dataset.kid;
+        const n = day.notices[idx];
+        const i = n.kids.indexOf(k);
+        if(i>-1) n.kids.splice(i,1); else n.kids.push(k);
+        setKidChipColor(chip, k, n.kids.includes(k));
+        markDirty();
+      };
+    });
+    bindPhotoWidget(card, day.notices[idx].photos, `photos/${dateKey(currentDate)}/hinweis${idx}`, renderNoticesList);
+  });
+  initAutoGrow(wrap);
+}
+
+function renderDuaNoticesList(){
+  const day = currentDay;
+  const wrap = document.getElementById("duaNoticesList");
+  wrap.innerHTML = day.dua.notices.map((n, idx)=>`
+    <div class="entry-card" data-idx="${idx}">
+      <div class="entry-top">
+        <textarea class="dua-notice-text autogrow" rows="1" placeholder="z. B. Kinderwagen oder Scooter mitnehmen" style="flex:1;">${escapeHtml(n.text)}</textarea>
+        <button type="button" class="remove-btn dua-notice-remove">${t("remove")}</button>
+      </div>
+      <label class="field-label" style="margin-top:10px;font-size:13px;">Fotos</label>
+      ${photosHtml(n.photos)}
+    </div>
+  `).join("") || `<p class="participant-hint">${t("noNotice")}</p>`;
+
+  wrap.querySelectorAll(".entry-card").forEach(card=>{
+    const idx = Number(card.dataset.idx);
+    card.querySelector(".dua-notice-text").oninput = e=>{ day.dua.notices[idx].text = e.target.value; autoGrow(e.target); markDirty(); };
+    card.querySelector(".dua-notice-remove").onclick = ()=>{ day.dua.notices.splice(idx,1); renderDuaNoticesList(); markDirty(); };
+    bindPhotoWidget(card, day.dua.notices[idx].photos, `photos/${dateKey(currentDate)}/dua${idx}`, renderDuaNoticesList);
+  });
+  initAutoGrow(wrap);
+}
+
+function kidExceptionBlock(key, label, ex){
+  return `
+    <div class="kidblock" data-kid="${key}">
+      <div class="kidname">${label}</div>
+      <div class="subrow">
+        <input type="checkbox" class="exc-noBring" ${ex.noBring?"checked":""}>
+        <label>${t("noBring")}</label>
+      </div>
+      <div class="exception-reason" style="display:${ex.noBring?"block":"none"}">
+        <input type="text" class="exc-noBringReason" placeholder="${t("reasonNoBring")}" value="${escapeHtml(ex.noBringReason)}">
+      </div>
+      <div class="subrow">
+        <input type="checkbox" class="exc-noAbhol" ${ex.noAbhol?"checked":""}>
+        <label>${t("noAbhol")}</label>
+      </div>
+      <div class="exception-reason" style="display:${ex.noAbhol?"block":"none"}">
+        <input type="text" class="exc-noAbholReason" placeholder="${t("reasonNoAbhol")}" value="${escapeHtml(ex.noAbholReason)}">
+      </div>
+    </div>
+  `;
+}
+
+function escapeHtml(s){
+  return (s||"").replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+
+async function uploadPhoto(file, pathPrefix){
+  if(!firebase.storage){
+    throw new Error("Storage-SDK nicht geladen");
+  }
+  const safeName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, "_");
+  const path = `${pathPrefix}/${Date.now()}_${safeName}`;
+  const fileRef = firebase.storage().ref().child(path);
+
+  const timeout = new Promise((_, reject)=>{
+    setTimeout(()=> reject(new Error("Zeitüberschreitung — Storage evtl. nicht aktiviert")), 20000);
+  });
+
+  await Promise.race([fileRef.put(file), timeout]);
+  const url = await Promise.race([fileRef.getDownloadURL(), timeout]);
+  return { url, name: file.name };
+}
+
+function photosHtml(photos){
+  return `
+    <div class="photos-row">
+      ${photos.map((p, i)=>`
+        <div class="photo-thumb" data-pidx="${i}">
+          <a href="${p.url}" target="_blank" rel="noopener"><img src="${p.url}" alt=""></a>
+          <input type="text" class="photo-name" placeholder="Name (optional)" value="${escapeHtml(p.name)}">
+          <button type="button" class="photo-remove">${t("remove")}</button>
+        </div>
+      `).join("")}
+    </div>
+    <label class="photo-add-btn">
+      📷 ${t("photos")}
+      <input type="file" accept="image/*" multiple class="photo-input">
+    </label>
+    <span class="photo-status"></span>
+  `;
+}
+
+function bindPhotoWidget(card, photos, pathPrefix, rerender){
+  card.querySelectorAll(".photo-remove").forEach((btn, i)=>{
+    btn.onclick = ()=>{ photos.splice(i,1); markDirty(); rerender(); };
+  });
+  card.querySelectorAll(".photo-name").forEach((inp, i)=>{
+    inp.oninput = e=>{ photos[i].name = e.target.value; markDirty(); };
+  });
+  const fileInput = card.querySelector(".photo-input");
+  const statusEl = card.querySelector(".photo-status");
+  if(fileInput){
+    fileInput.onchange = async (e)=>{
+      const files = Array.from(e.target.files || []);
+      if(!files.length) return;
+      statusEl.textContent = "lädt hoch…";
+      for(const file of files){
+        try{
+          const uploaded = await uploadPhoto(file, pathPrefix);
+          photos.push(uploaded);
+        }catch(err){
+          statusEl.textContent = "Hochladen fehlgeschlagen (" + ((err && err.message) || "Fehler") + ")";
+          return;
+        }
+      }
+      markDirty();
+      rerender();
+    };
+  }
+}
+
+function autoGrow(el){
+  el.style.height = "auto";
+  el.style.height = el.scrollHeight + "px";
+}
+function initAutoGrow(container){
+  container.querySelectorAll("textarea.autogrow").forEach(autoGrow);
+}
+
+function updateDuaNote(){
+  const day = currentDay;
+  const noteEl = document.getElementById("duaNote");
+  if(day.dua.mustPickup && (day.dua.wishTime || day.dua.byTime)){
+    const parts = [];
+    if(day.dua.wishTime) parts.push(`${t("duaWishLabel")}: ${day.dua.wishTime} Uhr`);
+    if(day.dua.byTime) parts.push(`${t("duaLatestLabel")} ${day.dua.byTime} Uhr`);
+    noteEl.innerHTML = `<div class="dua-note">${t("duaPickupHint")} ${parts.join(", ")}</div>`;
+  }else if(day.dua.mustPickup){
+    noteEl.innerHTML = `<div class="dua-note">${t("duaWaiting")}</div>`;
+  }else{
+    noteEl.innerHTML = "";
+  }
+}
+
+function renderDuaEventsList(){
+  const day = currentDay;
+  const wrap = document.getElementById("duaEventsList");
+  wrap.innerHTML = day.dua.kindergartenEvents.map((ke, idx)=>`
+    <div class="entry-card" data-idx="${idx}">
+      <div class="entry-top">
+        <textarea class="dke-text autogrow" rows="1" placeholder="${t("placeholderKinder")}" style="flex:1;">${escapeHtml(ke.text)}</textarea>
+        <button type="button" class="remove-btn dke-remove">${t("remove")}</button>
+      </div>
+      <div class="row2" style="margin-top:10px;">
+        <div>${selectHtml("dkeStart"+idx, TIMES_15, ke.timeStart)}</div>
+        <div>${selectHtml("dkeEnd"+idx, TIMES_15, ke.timeEnd)}</div>
+      </div>
+      <label class="field-label" style="margin-top:10px;font-size:13px;">Fotos</label>
+      ${photosHtml(ke.photos)}
+    </div>
+  `).join("") || `<p class="participant-hint">${t("noKinder")}</p>`;
+
+  wrap.querySelectorAll(".entry-card").forEach(card=>{
+    const idx = Number(card.dataset.idx);
+    const ke = day.dua.kindergartenEvents[idx];
+    card.querySelector(".dke-text").oninput = e=>{ ke.text = e.target.value; autoGrow(e.target); markDirty(); };
+    card.querySelector(`#dkeStart${idx}`).onchange = e=>{ ke.timeStart = e.target.value; markDirty(); };
+    card.querySelector(`#dkeEnd${idx}`).onchange = e=>{ ke.timeEnd = e.target.value; markDirty(); };
+    card.querySelector(".dke-remove").onclick = ()=>{ day.dua.kindergartenEvents.splice(idx,1); renderDuaEventsList(); markDirty(); };
+    bindPhotoWidget(card, ke.photos, `photos/${dateKey(currentDate)}/kindergarten${idx}`, renderDuaEventsList);
+  });
+  initAutoGrow(wrap);
+}
+
+function renderElternHinweiseList(){
+  const day = currentDay;
+  const wrap = document.getElementById("elternHinweiseList");
+  wrap.innerHTML = day.elternHinweise.map((eh, idx)=>`
+    <div class="entry-card" data-idx="${idx}">
+      <label class="field-label" style="font-size:13px;">${t("name")}</label>
+      <div class="chips eh-chips">${getActiveNames().map(n=>nameChipHtml(n, eh.person===n)).join("")}</div>
+      <label class="field-label" style="margin-top:10px;font-size:13px;">${t("termine")}</label>
+      <textarea class="eh-text autogrow" rows="1" placeholder="${t("placeholderEltern")}">${escapeHtml(eh.text)}</textarea>
+      <label class="field-label" style="margin-top:10px;font-size:13px;">${t("arbeitszeit")}</label>
+      <div class="row2">
+        <div>${selectHtml("ehStart"+idx, TIMES_15, eh.timeStart)}</div>
+        <div>${selectHtml("ehEnd"+idx, TIMES_15, eh.timeEnd)}</div>
+      </div>
+      <label class="field-label" style="margin-top:10px;font-size:13px;">Fotos</label>
+      ${photosHtml(eh.photos)}
+      <button type="button" class="remove-btn eh-remove" style="margin-top:8px;">${t("remove")}</button>
+    </div>
+  `).join("") || `<p class="participant-hint">${t("noEltern")}</p>`;
+
+  wrap.querySelectorAll(".entry-card").forEach(card=>{
+    const idx = Number(card.dataset.idx);
+    const eh = day.elternHinweise[idx];
+    card.querySelectorAll(".eh-chips .chip").forEach(chip=>{
+      chip.onclick = ()=>{
+        eh.person = (eh.person === chip.dataset.name) ? "" : chip.dataset.name; // einzelne Person, erneutes Antippen hebt auf
+        markDirty();
+        renderElternHinweiseList();
+      };
+    });
+    card.querySelector(".eh-text").oninput = e=>{ eh.text = e.target.value; autoGrow(e.target); markDirty(); };
+    card.querySelector(`#ehStart${idx}`).onchange = e=>{ eh.timeStart = e.target.value; markDirty(); };
+    card.querySelector(`#ehEnd${idx}`).onchange = e=>{ eh.timeEnd = e.target.value; markDirty(); };
+    card.querySelector(".eh-remove").onclick = ()=>{ day.elternHinweise.splice(idx,1); renderElternHinweiseList(); markDirty(); };
+    bindPhotoWidget(card, eh.photos, `photos/${dateKey(currentDate)}/eltern${idx}`, renderElternHinweiseList);
+  });
+  initAutoGrow(wrap);
+}
+
+/* ---------------- Sprache Deutsch / Türkisch ---------------- */
+let LANG = localStorage.getItem("schulweg-lang") || "de";
+const T = {
+  de:{
+    title:"🎒 Schulwegplan", today:"Heute", saveTop:"💾 Speichern", resetDay:"Tag leeren", save:"Speichern",
+    bring:"🎒 Wer bringt Eflin &amp; Nezir in die Schule?", abhol:"🏡 Wer holt ab?",
+    readiness:"⏰ Bereitschaftszeit unten in der Anlage",
+    readinessHint:"Nur eines der Kinder braucht diese Zeit — das andere ist ja gerade mit einem Elternteil unterwegs.",
+    events:"🏫 Schultermine", addEvent:"+ Termin hinzufügen", endTime:"Endzeit hinzufügen (Von–Bis)",
+    locEvent:"Ort (z. B. Turnsaal, Klassenzimmer)", participants:"Wer nimmt teil?", whichKid:"Betrifft welches Kind?",
+    photos:"Fotos", notices:"📌 Wichtige Hinweise heute", addNotice:"+ Hinweis hinzufügen",
+    locNotice:"Ort (z. B. Garderobe, Turnsaal)", exceptions:"⚠️ Ausnahmen", noBring:"nicht bringen", noAbhol:"nicht abholen",
+    dua:"👶 Dua", duaCheckbox:"Dua muss heute von Fırat/Ebru abgeholt werden", wishTime:"Wunschabholzeit", latest:"Spätestens",
+    kindergarten:"Kindergarten-Termine", duaNotices:"Hinweise für Dua",
+    eltern:"👔 Eltern-Hinweise", elternHint:"Z. B. Arbeitszeiten, falls das die Verfügbarkeit an dem Tag beeinflusst.",
+    addEltern:"+ Eltern-Hinweis hinzufügen", name:"Name", termine:"Termine", arbeitszeit:"Arbeitszeit", remove:"entfernen",
+    noEvent:"Noch kein Termin eingetragen.", noNotice:"Noch kein Hinweis eingetragen.", noEltern:"Noch kein Eltern-Hinweis eingetragen.",
+    noKinder:"Kein Kindergarten-Termin eingetragen.", noRemark:"Noch keine Bemerkung eingetragen.",
+    remarkEflin:"📝 Bemerkung Eflin", remarkNezir:"📝 Bemerkung Nezir",
+    remarkHint:"Dauerhafte Hinweise, z. B. wiederkehrende Kurse — gilt für alle Tage.",
+    addRemark:"+ Bemerkung hinzufügen", saveRemarks:"Bemerkungen speichern", whichDays:"An welchen Tagen?",
+    bus:"🚌 Busabfahrten 64A (Mo–Fr, immer gleich)", busTo:"Zur Schule (Zouvalgasse)", busFrom:"Von Schule (Perfektastraße)",
+    grandparents:"👴👵 Großeltern", grandToggle:"Großeltern aktivieren (Murat &amp; Sevgi überall auswählbar machen)",
+    holiday:"Feiertag", holidaySchoolsClosed:"Schulen geschlossen",
+    bringerFehlt:"Bringer fehlt", holerFehlt:"Abholer fehlt", bringt:"Bringt", holtAb:"Holt ab",
+    bereitFehlt:"Bereitschaftszeit fehlt", ausnahmeBeachten:"Ausnahme beachten!", terminVorhanden:"Schultermin vorhanden",
+    hinweisVorhanden:"Hinweis vorhanden", duaBeachten:"Dua Abholung beachten", elternHinzugefuegt:"Eltern Arbeitszeit hinzugefügt",
+    pinTitle:"Schulwegplan", pinPrompt:"Bitte 4-stelligen Code eingeben", pinButton:"Freischalten",
+    selectPlaceholder:"— wählen —", reasonNoBring:"Grund (z. B. Arzttermin)", reasonNoAbhol:"Grund (z. B. Vater holt früher ab)",
+    duaWishLabel:"Wunsch", duaLatestLabel:"spätestens", duaPickupHint:"Familie Irmak: Dua abholen —",
+    duaWaiting:"Familie Irmak: Dua heute abholen — bitte Uhrzeit wählen",
+    statusLoading:"lädt…", statusUnsaved:"Ungespeicherte Änderungen — unten auf „Speichern“ tippen",
+    statusSaving:"speichert…", statusSavingRetry:"speichert… (Versuch", statusSaved:"gespeichert · für alle vier sichtbar",
+    statusSaveFailed:"Speichern fehlgeschlagen (", statusRetry:") — bitte erneut versuchen",
+    statusDayCleared:"Tag wurde geleert.", statusPleaseComplete:"Bitte ergänzen: ",
+    confirmClearDay:"wirklich entfernen? Der Tag wird wieder unbearbeitet.",
+    globalSaved:"gespeichert · für alle sichtbar", globalSaveFailed:"Speichern fehlgeschlagen (",
+    photosEvent:"Fotos (z. B. Einladung, Zettel)", placeholderKinder:"Was steht an? (z. B. Laternenfest)",
+    placeholderEltern:"z. B. muss länger arbeiten", placeholderRemark:"z. B. Basketballkurs"
+  },
+  tr:{
+    title:"🎒 Okul Yolu Planı", today:"Bugün", saveTop:"💾 Kaydet", resetDay:"Günü temizle", save:"Kaydet",
+    bring:"🎒 Eflin &amp; Nezir'i okula kim götürüyor?", abhol:"🏡 Kim alacak?",
+    readiness:"⏰ Aşağıda hazır olma saati",
+    readinessHint:"Sadece bir çocuğun bu saate ihtiyacı var — diğeri zaten bir ebeveynle birlikte.",
+    events:"🏫 Okul randevuları", addEvent:"+ Randevu ekle", endTime:"Bitiş saati ekle (Başlangıç–Bitiş)",
+    locEvent:"Yer (örn. spor salonu, sınıf)", participants:"Kim katılıyor?", whichKid:"Hangi çocuğu ilgilendiriyor?",
+    photos:"Fotoğraflar", notices:"📌 Bugünün önemli notları", addNotice:"+ Not ekle",
+    locNotice:"Yer (örn. vestiyer, spor salonu)", exceptions:"⚠️ İstisnalar", noBring:"götürülmeyecek", noAbhol:"alınmayacak",
+    dua:"👶 Dua", duaCheckbox:"Dua bugün Fırat/Ebru tarafından alınmalı", wishTime:"İstenen alım saati", latest:"En geç",
+    kindergarten:"Kreş randevuları", duaNotices:"Dua için notlar",
+    eltern:"👔 Ebeveyn notları", elternHint:"Örn. çalışma saatleri, o gün müsaitliği etkiliyorsa.",
+    addEltern:"+ Ebeveyn notu ekle", name:"İsim", termine:"Notlar", arbeitszeit:"Çalışma saati", remove:"Sil",
+    noEvent:"Henüz randevu girilmedi.", noNotice:"Henüz not girilmedi.", noEltern:"Henüz ebeveyn notu girilmedi.",
+    noKinder:"Kreş randevusu girilmedi.", noRemark:"Henüz not girilmedi.",
+    remarkEflin:"📝 Eflin için not", remarkNezir:"📝 Nezir için not",
+    remarkHint:"Kalıcı notlar, örn. tekrarlayan kurslar — her gün için geçerli.",
+    addRemark:"+ Not ekle", saveRemarks:"Notları kaydet", whichDays:"Hangi günler?",
+    bus:"🚌 64A Otobüs saatleri (Pzt–Cum, her zaman aynı)", busTo:"Okula (Zouvalgasse)", busFrom:"Okuldan (Perfektastraße)",
+    grandparents:"👴👵 Büyükanne & Büyükbaba", grandToggle:"Büyükanne/Büyükbabayı etkinleştir (Murat &amp; Sevgi her yerde seçilebilir olsun)",
+    holiday:"Resmi tatil", holidaySchoolsClosed:"Okullar kapalı",
+    bringerFehlt:"Götüren eksik", holerFehlt:"Alan eksik", bringt:"Götürüyor", holtAb:"Alıyor",
+    bereitFehlt:"Hazır olma saati eksik", ausnahmeBeachten:"İstisnaya dikkat!", terminVorhanden:"Okul randevusu var",
+    hinweisVorhanden:"Not var", duaBeachten:"Dua alımına dikkat", elternHinzugefuegt:"Ebeveyn çalışma saati eklendi",
+    pinTitle:"Okul Yolu Planı", pinPrompt:"Lütfen 4 haneli kodu girin", pinButton:"Kilidi aç",
+    selectPlaceholder:"— seçin —", reasonNoBring:"Sebep (örn. doktor randevusu)", reasonNoAbhol:"Sebep (örn. baba daha erken alacak)",
+    duaWishLabel:"İstek", duaLatestLabel:"en geç", duaPickupHint:"Irmak Ailesi: Dua'yı alın —",
+    duaWaiting:"Irmak Ailesi: Dua bugün alınmalı — lütfen saat seçin",
+    statusLoading:"yükleniyor…", statusUnsaved:"Kaydedilmemiş değişiklikler — aşağıdan „Kaydet“e dokunun",
+    statusSaving:"kaydediliyor…", statusSavingRetry:"kaydediliyor… (deneme", statusSaved:"kaydedildi · dört kişi için görünür",
+    statusSaveFailed:"Kaydetme başarısız (", statusRetry:") — lütfen tekrar deneyin",
+    statusDayCleared:"Gün temizlendi.", statusPleaseComplete:"Lütfen tamamlayın: ",
+    confirmClearDay:"gerçekten silinsin mi? Gün yeniden işlenmemiş olacak.",
+    globalSaved:"kaydedildi · herkes için görünür", globalSaveFailed:"Kaydetme başarısız (",
+    photosEvent:"Fotoğraflar (örn. davetiye, kağıt)", placeholderKinder:"Ne var? (örn. Fener Bayramı)",
+    placeholderEltern:"örn. daha uzun çalışmak zorunda", placeholderRemark:"örn. Basketbol kursu"
+  }
+};
+function t(key){ return (T[LANG] && T[LANG][key]) || T.de[key] || key; }
+function setLang(lang){
+  LANG = lang;
+  localStorage.setItem("schulweg-lang", lang);
+  const btnAt = document.getElementById("langAt");
+  const btnTr = document.getElementById("langTr");
+  if(btnAt) btnAt.classList.toggle("selected", lang==="de");
+  if(btnTr) btnTr.classList.toggle("selected", lang==="tr");
+  document.getElementById("appTitle").innerHTML = t("title") + ' <span style="font-size:13px;color:var(--ink-soft);font-weight:400;">v4</span>';
+  document.getElementById("todayBtn").textContent = t("today");
+  document.getElementById("saveDayBtnTop").textContent = t("saveTop");
+  document.getElementById("resetDayBtn").textContent = t("resetDay");
+  document.getElementById("pinTitle").textContent = t("pinTitle");
+  document.getElementById("pinPrompt").textContent = t("pinPrompt");
+  document.getElementById("pinSubmit").textContent = t("pinButton");
+  renderDateNav();
+  renderDay();
+  renderGlobalPanel();
+}
+
+/* ---------------- Globaler Bereich: Bemerkungen, Busabfahrten, Großeltern ---------------- */
+const GLOBAL_KEY = "global:settings";
+let globalData = { remarks:{eflin:[], nezir:[]}, grandparentsEnabled:false };
+let globalDirty = false;
+
+function normalizeRemark(r){
+  return { name:r.name||"", days:Array.isArray(r.days)?r.days:[], timeStart:r.timeStart||"", timeEnd:r.timeEnd||"", photos:normalizePhotos(r.photos) };
+}
+
+async function loadGlobalData(){
+  try{
+    const res = await cloudStore.get(GLOBAL_KEY);
+    if(res && res.value){
+      const parsed = JSON.parse(res.value);
+      globalData.remarks = {
+        eflin: Array.isArray(parsed.remarks && parsed.remarks.eflin) ? parsed.remarks.eflin.map(normalizeRemark) : [],
+        nezir: Array.isArray(parsed.remarks && parsed.remarks.nezir) ? parsed.remarks.nezir.map(normalizeRemark) : []
+      };
+      globalData.grandparentsEnabled = !!parsed.grandparentsEnabled;
+    }
+  }catch(e){ /* noch nichts gespeichert — Standardwerte bleiben */ }
+  grandparentsEnabled = globalData.grandparentsEnabled;
+  renderGlobalPanel();
+}
+
+async function saveGlobalData(){
+  const statusEl = document.getElementById("globalStatus");
+  statusEl.textContent = t("statusSaving");
+  try{
+    await cloudStore.set(GLOBAL_KEY, JSON.stringify(globalData));
+    globalDirty = false;
+    statusEl.textContent = t("globalSaved");
+  }catch(e){
+    statusEl.textContent = t("globalSaveFailed") + ((e&&e.message)||"Fehler") + ")";
+  }
+}
+
+function getWeekdayShortList(){
+  const info = getWeekdayInfo();
+  return [
+    {k:"mo", l:info[1].short},
+    {k:"di", l:info[2].short},
+    {k:"mi", l:info[3].short},
+    {k:"do", l:info[4].short},
+    {k:"fr", l:info[5].short}
+  ];
+}
+
+function remarkCardHtml(kidKey, r, idx){
+  return `
+    <div class="entry-card" data-kid="${kidKey}" data-idx="${idx}">
+      <div class="entry-top">
+        <textarea class="rk-text autogrow" rows="1" placeholder="${t("placeholderRemark")}">${escapeHtml(r.name)}</textarea>
+        <button type="button" class="remove-btn rk-remove">${t("remove")}</button>
+      </div>
+      <label class="field-label" style="margin-top:10px;font-size:13px;">${t("whichDays")}</label>
+      <div class="chips rk-days">
+        ${getWeekdayShortList().map(w=>`<button type="button" class="chip ${r.days.includes(w.k)?"selected":""}" data-day="${w.k}">${w.l}</button>`).join("")}
+      </div>
+      <div class="row2" style="margin-top:10px;">
+        <div>${selectHtml("rkStart"+kidKey+idx, TIMES_15, r.timeStart)}</div>
+        <div>${selectHtml("rkEnd"+kidKey+idx, TIMES_15, r.timeEnd)}</div>
+      </div>
+      <label class="field-label" style="margin-top:10px;font-size:13px;">Fotos</label>
+      ${photosHtml(r.photos)}
+    </div>
+  `;
+}
+
+function renderRemarksList(kidKey){
+  const wrap = document.getElementById("remarks-"+kidKey);
+  const list = globalData.remarks[kidKey];
+  wrap.innerHTML = list.map((r,idx)=>remarkCardHtml(kidKey,r,idx)).join("") || `<p class="participant-hint">${t("noRemark")}</p>`;
+
+  wrap.querySelectorAll(".entry-card").forEach(card=>{
+    const idx = Number(card.dataset.idx);
+    const r = list[idx];
+    card.querySelector(".rk-text").oninput = e=>{ r.name = e.target.value; autoGrow(e.target); globalDirty = true; };
+    card.querySelector(`#rkStart${kidKey}${idx}`).onchange = e=>{ r.timeStart = e.target.value; globalDirty = true; };
+    card.querySelector(`#rkEnd${kidKey}${idx}`).onchange = e=>{ r.timeEnd = e.target.value; globalDirty = true; };
+    card.querySelectorAll(".rk-days .chip").forEach(chip=>{
+      chip.onclick = ()=>{
+        const d = chip.dataset.day;
+        const i = r.days.indexOf(d);
+        if(i>-1) r.days.splice(i,1); else r.days.push(d);
+        chip.classList.toggle("selected");
+        globalDirty = true;
+      };
+    });
+    card.querySelector(".rk-remove").onclick = ()=>{ list.splice(idx,1); renderRemarksList(kidKey); globalDirty = true; };
+    bindPhotoWidget(card, r.photos, `photos/global/${kidKey}${idx}`, ()=>renderRemarksList(kidKey));
+  });
+  initAutoGrow(wrap);
+}
+
+let currentBusDirection = "hin";
+function renderBusTimes(direction){
+  currentBusDirection = direction;
+  const wrap = document.getElementById("busTimesList");
+  const times = direction === "hin" ? BUS_TO_SCHOOL : BUS_FROM_SCHOOL;
+  wrap.innerHTML = `<div class="bus-times-grid">${times.map(time=>`<span class="bus-time-pill">${time}</span>`).join("")}</div>`;
+  const toBtn = document.getElementById("busToSchoolBtn");
+  const fromBtn = document.getElementById("busFromSchoolBtn");
+  if(toBtn) toBtn.classList.toggle("selected", direction==="hin");
+  if(fromBtn) fromBtn.classList.toggle("selected", direction==="zurueck");
+}
+
+function renderGlobalPanel(){
+  const panel = document.getElementById("globalPanel");
+  panel.innerHTML = `
+    <section class="field c-pink">
+      <label class="field-label">${t("remarkEflin")}</label>
+      <p class="participant-hint" style="margin-bottom:8px;">${t("remarkHint")}</p>
+      <div id="remarks-eflin"></div>
+      <button type="button" class="add-btn" id="addRemarkEflinBtn">${t("addRemark")}</button>
+    </section>
+
+    <section class="field c-blue">
+      <label class="field-label">${t("remarkNezir")}</label>
+      <div id="remarks-nezir"></div>
+      <button type="button" class="add-btn" id="addRemarkNezirBtn">${t("addRemark")}</button>
+    </section>
+
+    <div class="savebar">
+      <button type="button" class="save-btn" id="saveGlobalBtn" style="background:var(--violet);">${t("saveRemarks")}</button>
+    </div>
+    <div class="savestate" id="globalStatus"></div>
+
+    <section class="field c-teal" style="margin-top:20px;">
+      <label class="field-label">${t("bus")}</label>
+      <div class="chips">
+        <button type="button" class="chip" id="busToSchoolBtn">${t("busTo")}</button>
+        <button type="button" class="chip" id="busFromSchoolBtn">${t("busFrom")}</button>
+      </div>
+      <div id="busTimesList"></div>
+    </section>
+
+    <section class="field c-amber">
+      <label class="field-label">${t("grandparents")}</label>
+      <div class="subrow" style="margin-top:0;">
+        <input type="checkbox" id="grandparentsToggle" ${globalData.grandparentsEnabled?"checked":""}>
+        <label for="grandparentsToggle">${t("grandToggle")}</label>
+      </div>
+    </section>
+  `;
+
+  renderRemarksList("eflin");
+  renderRemarksList("nezir");
+  renderBusTimes("hin");
+
+  document.getElementById("addRemarkEflinBtn").onclick = ()=>{
+    globalData.remarks.eflin.push({name:"", days:[], timeStart:"", timeEnd:"", photos:[]});
+    renderRemarksList("eflin");
+    globalDirty = true;
+  };
+  document.getElementById("addRemarkNezirBtn").onclick = ()=>{
+    globalData.remarks.nezir.push({name:"", days:[], timeStart:"", timeEnd:"", photos:[]});
+    renderRemarksList("nezir");
+    globalDirty = true;
+  };
+  document.getElementById("saveGlobalBtn").onclick = saveGlobalData;
+  document.getElementById("busToSchoolBtn").onclick = ()=>renderBusTimes("hin");
+  document.getElementById("busFromSchoolBtn").onclick = ()=>renderBusTimes("zurueck");
+  document.getElementById("grandparentsToggle").onchange = e=>{
+    globalData.grandparentsEnabled = e.target.checked;
+    grandparentsEnabled = e.target.checked;
+    globalDirty = true;
+    saveGlobalData();
+    renderDay(); // Namens-Chips im Tagesbereich neu aufbauen, damit Murat/Sevgi erscheinen/verschwinden
+  };
+}
+
+function bindEvents(){
+  const day = currentDay;
+
+  document.getElementById("bringChips").querySelectorAll(".chip").forEach(chip=>{
+    chip.onclick = ()=>{
+      const n = chip.dataset.name;
+      const i = day.bring.people.indexOf(n);
+      if(i>-1) day.bring.people.splice(i,1); else day.bring.people.push(n);
+      setChipColor(chip, n, day.bring.people.includes(n));
+      markDirty();
+    };
+  });
+  document.getElementById("bringTime").onchange = e=>{ day.bring.time = e.target.value; markDirty(); };
+
+  document.getElementById("abholChips").querySelectorAll(".chip").forEach(chip=>{
+    chip.onclick = ()=>{
+      const n = chip.dataset.name;
+      const i = day.abhol.people.indexOf(n);
+      if(i>-1) day.abhol.people.splice(i,1); else day.abhol.people.push(n);
+      setChipColor(chip, n, day.abhol.people.includes(n));
+      markDirty();
+    };
+  });
+  document.getElementById("abholTime").onchange = e=>{ day.abhol.time = e.target.value; markDirty(); };
+
+  const readinessChips = document.querySelectorAll("#readinessChildChips .chip");
+  readinessChips.forEach(chip=>{
+    chip.onclick = ()=>{
+      day.readiness.child = chip.dataset.child; // einmal gewählt, bleibt ein Kind gewählt — kein Zurück auf "keines"
+      markDirty();
+      renderDay(); // komplett neu aufbauen, damit die Uhrzeit garantiert erscheint
+    };
+  });
+  document.getElementById("readyTime").onchange = e=>{ day.readiness.time = e.target.value; markDirty(); };
+
+  ["eflin","nezir"].forEach(key=>{
+    const block = document.querySelector(`.kidblock[data-kid="${key}"]`);
+    const ex = day.exceptions[key];
+
+    const noBring = block.querySelector(".exc-noBring");
+    const noBringReasonWrap = block.querySelector(".exc-noBring").closest(".subrow").nextElementSibling;
+    noBring.onchange = e=>{
+      ex.noBring = e.target.checked;
+      noBringReasonWrap.style.display = ex.noBring ? "block" : "none";
+      markDirty();
+    };
+    block.querySelector(".exc-noBringReason").oninput = e=>{ ex.noBringReason = e.target.value; markDirty(); };
+
+    const noAbhol = block.querySelector(".exc-noAbhol");
+    const noAbholReasonWrap = block.querySelector(".exc-noAbhol").closest(".subrow").nextElementSibling;
+    noAbhol.onchange = e=>{
+      ex.noAbhol = e.target.checked;
+      noAbholReasonWrap.style.display = ex.noAbhol ? "block" : "none";
+      markDirty();
+    };
+    block.querySelector(".exc-noAbholReason").oninput = e=>{ ex.noAbholReason = e.target.value; markDirty(); };
+  });
+
+  document.getElementById("addEventBtn").onclick = ()=>{
+    day.schoolEvents.push({name:"", timeStart:"", timeEnd:"", hasEndTime:false, location:"", participants:[], kids:[], photos:[]});
+    renderEventsList();
+    markDirty();
+  };
+
+  document.getElementById("addNoticeBtn").onclick = ()=>{
+    day.notices.push({text:"", kids:[], photos:[], location:""});
+    renderNoticesList();
+    markDirty();
+  };
+
+  document.getElementById("duaPickup").onchange = e=>{
+    day.dua.mustPickup = e.target.checked;
+    document.getElementById("duaTimeWrap").style.display = day.dua.mustPickup ? "block" : "none";
+    updateDuaNote();
+    markDirty();
+  };
+  document.getElementById("duaWishTime").onchange = e=>{
+    day.dua.wishTime = e.target.value;
+    updateDuaNote();
+    markDirty();
+  };
+  document.getElementById("duaTime").onchange = e=>{
+    day.dua.byTime = e.target.value;
+    updateDuaNote();
+    markDirty();
+  };
+
+  document.getElementById("addDuaEventBtn").onclick = ()=>{
+    day.dua.kindergartenEvents.push({timeStart:"", timeEnd:"", text:"", photos:[]});
+    renderDuaEventsList();
+    markDirty();
+  };
+
+  document.getElementById("addDuaNoticeBtn").onclick = ()=>{
+    day.dua.notices.push({text:"", photos:[]});
+    renderDuaNoticesList();
+    markDirty();
+  };
+
+  document.getElementById("addElternHinweisBtn").onclick = ()=>{
+    day.elternHinweise.push({person:"", text:"", timeStart:"", timeEnd:"", photos:[]});
+    renderElternHinweiseList();
+    markDirty();
+  };
+
+  document.getElementById("saveDayBtn").onclick = performSave;
+}
+
+document.getElementById("saveDayBtnTop").onclick = performSave;
+document.getElementById("resetDayBtn").onclick = resetCurrentDay;
+document.getElementById("prevDayBtn").onclick = ()=>{
+  if(!confirmLeaveIfDirty()) return;
+  currentDate = stepWeekday(currentDate,-1);
+  loadDay();
+};
+document.getElementById("nextDayBtn").onclick = ()=>{
+  if(!confirmLeaveIfDirty()) return;
+  currentDate = stepWeekday(currentDate,1);
+  loadDay();
+};
+document.getElementById("todayBtn").onclick = ()=>{
+  if(!confirmLeaveIfDirty()) return;
+  currentDate = snapToWeekday(startOfToday());
+  loadDay();
+};
+document.getElementById("dateInput").onchange = e=>{
+  if(!confirmLeaveIfDirty()){
+    renderDateNav(); // Datumsfeld auf den bisherigen Wert zurücksetzen
+    return;
+  }
+  const [y,m,d] = e.target.value.split("-").map(Number);
+  if(!y||!m||!d) return;
+  currentDate = snapToWeekday(new Date(y, m-1, d));
+  loadDay();
+};
+
+const APP_PIN = "1999";
+
+function startApp(){
+  refreshHolidays(new Date().getFullYear());
+  loadGlobalData();
+  loadDay();
+  loadWeather();
+}
+
+function tryUnlock(){
+  const val = document.getElementById("pinInput").value.trim();
+  if(val === APP_PIN){
+    localStorage.setItem("schulweg-unlocked", "yes");
+    document.getElementById("pinGate").style.display = "none";
+    startApp();
+  }else{
+    document.getElementById("pinError").textContent = "Falscher Code, bitte nochmal.";
+    document.getElementById("pinInput").value = "";
+    document.getElementById("pinInput").focus();
+  }
+}
+document.getElementById("pinSubmit").onclick = tryUnlock;
+document.getElementById("pinInput").addEventListener("keydown", e=>{
+  if(e.key === "Enter") tryUnlock();
+});
+document.getElementById("langAt").onclick = ()=> setLang("de");
+document.getElementById("langTr").onclick = ()=> setLang("tr");
+
+// Ausgangstexte gemäß gespeicherter Sprache setzen (vor dem eigentlichen App-Start)
+document.getElementById("langAt").classList.toggle("selected", LANG==="de");
+document.getElementById("langTr").classList.toggle("selected", LANG==="tr");
+document.getElementById("appTitle").innerHTML = t("title") + ' <span style="font-size:13px;color:var(--ink-soft);font-weight:400;">v4</span>';
+document.getElementById("todayBtn").textContent = t("today");
+document.getElementById("saveDayBtnTop").textContent = t("saveTop");
+document.getElementById("resetDayBtn").textContent = t("resetDay");
+document.getElementById("pinTitle").textContent = t("pinTitle");
+document.getElementById("pinPrompt").textContent = t("pinPrompt");
+document.getElementById("pinSubmit").textContent = t("pinButton");
+
+if(localStorage.getItem("schulweg-unlocked") === "yes"){
+  document.getElementById("pinGate").style.display = "none";
+  startApp();
+}else{
+  document.getElementById("pinInput").focus();
+}
+</script>
+</body>
+</html>
