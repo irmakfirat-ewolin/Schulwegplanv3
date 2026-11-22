@@ -1186,6 +1186,35 @@
   }
   .slot-spin-btn:active{ transform:translateY(2px); box-shadow:0 2px 0 #8a0303; }
   .slot-spin-btn:disabled{ opacity:.5; cursor:default; box-shadow:none; }
+  .slot-spin-row{ display:flex; gap:10px; align-items:stretch; margin-top:12px; }
+  .slot-spin-row .slot-spin-btn{ flex:1; min-width:0; padding:14px 8px; margin:0; font-size:16px; }
+  .slot-spin-row .slot-auto-btn{
+    flex:1.5; font-size:19px; line-height:1.15;
+    background:linear-gradient(135deg,#ffd54a,#f2a900); color:#3a2500;
+    border-color:#fff3b0; box-shadow:0 4px 0 #9a6b00;
+    animation:slotAutoPulse 1.6s ease-in-out infinite;
+  }
+  .slot-spin-row .slot-auto-btn:active{ box-shadow:0 2px 0 #9a6b00; }
+  .slot-spin-row .slot-auto-btn:disabled{ animation:none; }
+  @keyframes slotAutoPulse{ 0%,100%{ transform:scale(1); } 50%{ transform:scale(1.04); } }
+  .slot-auto-box{
+    margin-top:12px; padding:12px; border-radius:14px; text-align:center;
+    background:rgba(255,213,74,.14); border:2px solid #d4af37;
+  }
+  .slot-auto-box.done{ background:rgba(60,180,110,.16); border-color:#3cb46e; }
+  .slot-auto-title{ font-weight:800; font-size:14px; margin-bottom:6px; }
+  .slot-auto-total{ font-size:22px; font-weight:900; margin:4px 0; }
+  .slot-auto-total strong{ color:#ffd54a; }
+  .slot-auto-bonus{ font-size:16px; font-weight:800; }
+  .slot-record-box{
+    margin-top:10px; padding:8px 12px; border-radius:12px; text-align:center;
+    font-size:13.5px; font-weight:700; line-height:1.4;
+    background:rgba(212,175,55,.13); border:1.5px solid rgba(212,175,55,.65);
+  }
+  .slot-record-box strong{ font-weight:900; }
+  .slot-record-sub{ font-size:11.5px; font-weight:600; opacity:.7; margin-top:2px; }
+  .slot-record-none, .slot-record-date{ font-weight:600; opacity:.75; }
+  .slot-auto-hits{ font-size:13px; opacity:.85; margin-bottom:6px; }
   .slot-result{
     margin-top:12px; padding:10px; border-radius:12px;
     text-align:center; font-weight:800; font-size:15px;
@@ -6859,6 +6888,65 @@ async function loadSlotSpinsUsedToday(){
     slotSpinsUsedToday = (res && res.value) ? JSON.parse(res.value) : {};
   }catch(e){ slotSpinsUsedToday = {}; }
   slotSpinsUsedTodayLoaded = true;
+  await loadSlotRecordData();
+}
+// ===== Rekord: wer hat an EINEM Tag allein durch Slot-Drehungen die meisten Jetons gewonnen? =====
+// slot_tagesgewinn:<Datum> = {Name: heute durch Drehungen gewonnene Jetons}; slot_rekord = {name, amount, date}.
+// Zählt nur Jeton-Gewinne aus dem Slot (keine Bonus-Drehungen, keine anderen Spiele). Startet ab
+// dem Einbau dieser Funktion — frühere Tage sind nicht rückwirkend bekannt.
+const SLOT_RECORD_KEY = "slot_rekord";
+function slotDailyWinKey(dateStr){ return "slot_tagesgewinn:" + dateStr; }
+let slotDailyWon = {};
+let slotRecord = null; // {name, amount, date} | null
+async function loadSlotRecordData(){
+  const todayStr = dateKey(startOfToday());
+  try{
+    const res = await cloudStore.get(slotDailyWinKey(todayStr));
+    slotDailyWon = (res && res.value) ? JSON.parse(res.value) : {};
+  }catch(e){ slotDailyWon = {}; }
+  try{
+    const res = await cloudStore.get(SLOT_RECORD_KEY);
+    slotRecord = (res && res.value) ? JSON.parse(res.value) : null;
+  }catch(e){ slotRecord = null; }
+}
+async function slotRegisterDailyWin(name, amount){
+  if(!name || !(amount>0)) return;
+  const todayStr = dateKey(startOfToday());
+  // WICHTIG: den heutigen Stand IMMER frisch aus der Cloud holen (nicht dem lokalen Wert vertrauen):
+  // Hat dieselbe Person heute schon auf einem anderen Gerät gedreht (oder ist die Seite seit
+  // Stunden offen), würde sonst der lokale, veraltete Stand überschreiben und dort gewonnene
+  // Jetons gingen im Tagesgewinn verloren. „not found“ = heute noch nichts gewonnen -> 0.
+  let current = slotDailyWon[name]||0;
+  try{
+    const res = await cloudStore.get(slotDailyWinKey(todayStr));
+    const data = (res && res.value) ? JSON.parse(res.value) : {};
+    current = data[name]||0;
+  }catch(e){
+    if(e && e.message === "not found") current = 0; // neuer Tag, noch kein Eintrag
+  }
+  const total = current + amount;
+  slotDailyWon[name] = total;
+  const todayWonEl = document.getElementById("slotTodayWonValue");
+  if(todayWonEl) todayWonEl.textContent = total;
+  try{ await cloudStore.setChild(slotDailyWinKey(todayStr), name, total); }catch(e){}
+  // Rekord ebenfalls frisch lesen, damit ein zwischenzeitlich von jemand anderem gesetzter Rekord
+  // nicht blind überschrieben wird.
+  try{
+    const res = await cloudStore.get(SLOT_RECORD_KEY);
+    slotRecord = (res && res.value) ? JSON.parse(res.value) : null;
+  }catch(e){ /* behalte lokalen Stand */ }
+  if(!slotRecord || total > (slotRecord.amount||0)){
+    slotRecord = {name, amount:total, date:todayStr};
+    try{ await cloudStore.set(SLOT_RECORD_KEY, JSON.stringify(slotRecord)); }catch(e){}
+  }
+}
+function slotRecordHtml(){
+  if(!slotRecord || !(slotRecord.amount>0)){
+    return `<div class="slot-record-box">🏆 ${t("slotRecordTitle")}: <span class="slot-record-none">${t("slotRecordNone")}</span><div class="slot-record-sub">${t("slotRecordSub")}</div></div>`;
+  }
+  const d = String(slotRecord.date||"").split("-");
+  const dateTxt = d.length===3 ? `${d[2]}.${d[1]}.${d[0]}` : "";
+  return `<div class="slot-record-box">🏆 ${t("slotRecordTitle")}: <strong style="color:${PERSON_COLORS[slotRecord.name]||'#ffd54a'};">${escapeHtml(slotRecord.name)}</strong> — <strong>${slotRecord.amount} 🪙</strong>${dateTxt ? ` <span class="slot-record-date">(${dateTxt})</span>` : ""}<div class="slot-record-sub">${t("slotRecordSub")}</div></div>`;
 }
 // Geräte-Sperre fürs Casino — genau wie beim Tagesspiel: ein Gerät gilt pro Tag für genau eine
 // Person. Verhindert, dass auf demselben Gerät am selben Tag für zwei verschiedene Personen
@@ -6890,46 +6978,9 @@ const SLOT_BONUS_SYMBOL = "🎁"; // 3x davon = keine Jetons, sondern +20 Extra-
 const SLOT_BONUS_SPINS = 20;
 const SLOT_DAILY_SPINS = 35;
 const SLOT_COINS_PER_COUPON = 200;
-// Welches Casino-Spiel wie oft gespielt wird — pro Tag ein Schlüssel mit einem Zähler je Spiel,
-// damit der Admin-Bereich Tag/Woche/Monat/Gesamt auswerten kann, ohne jede einzelne Runde einzeln
-// zu speichern (würde sonst unnötig anwachsen).
-function casinoStatsKey(dateStr){ return "casino_stats_" + dateStr; }
-const CASINO_GAMES = ["slot","roulette","blackjack","poker","plinko","scratch","bingo","drawpoker","schwimmen"];
-async function logGamePlay(gameId){
-  try{
-    const todayStr = dateKey(startOfToday());
-    const res = await cloudStore.get(casinoStatsKey(todayStr));
-    const data = (res && res.value) ? JSON.parse(res.value) : {};
-    const newCount = (data[gameId]||0) + 1;
-    await cloudStore.setChild(casinoStatsKey(todayStr), gameId, newCount);
-  }catch(e){ /* nicht kritisch — reine Statistik, darf auch mal fehlschlagen */ }
-}
-let casinoPlayStats = null; // {day:{...}, week:{...}, month:{...}, total:{...}} — vom Admin-Bereich geladen
-async function loadCasinoPlayStats(){
-  try{
-    const allData = await cloudStore.listAll();
-    const today = startOfToday();
-    const todayStr = dateKey(today);
-    const weekAgo = new Date(today); weekAgo.setDate(weekAgo.getDate()-6);
-    const monthAgo = new Date(today); monthAgo.setDate(monthAgo.getDate()-29);
-    const sums = {day:{}, week:{}, month:{}, total:{}};
-    Object.keys(allData).forEach(key=>{
-      if(!key.startsWith("casino_stats_")) return;
-      const dStr = key.slice("casino_stats_".length);
-      const entry = allData[key]; // listAll() liefert bereits fertig geparste Objekte, kein JSON.parse nötig
-      if(!entry || typeof entry!=="object") return;
-      const d = new Date(dStr+"T00:00:00");
-      Object.entries(entry).forEach(([game,count])=>{
-        sums.total[game] = (sums.total[game]||0) + count;
-        if(d >= monthAgo) sums.month[game] = (sums.month[game]||0) + count;
-        if(d >= weekAgo) sums.week[game] = (sums.week[game]||0) + count;
-        if(dStr===todayStr) sums.day[game] = (sums.day[game]||0) + count;
-      });
-    });
-    casinoPlayStats = sums;
-  }catch(e){ casinoPlayStats = {day:{},week:{},month:{},total:{}}; }
-  renderWordGameAdminBody();
-}
+// Die Casino-Spielstatistik wurde entfernt (zeigte im Admin-Bereich nur Nullen). Diese Funktion bleibt
+// als leere Hülle, damit die vielen Aufrufe in den Spielen weiter funktionieren — sie speichert nichts mehr.
+function logGamePlay(gameId){ /* absichtlich leer */ }
 const SLOT_COINS_KEY = "slot_coins"; // ein einziger dauerhafter Schlüssel, pro Person ein Kindfeld
 // Auszahlung pro Symbol bei 3 Gleichen — seltenere/wertvollere Symbole zahlen mehr.
 // Etwas niedriger als zuvor, weil mit dem neuen 🎁-Bonussymbol eine zusätzliche Gewinn-Möglichkeit
@@ -7069,13 +7120,15 @@ function evaluateSlotReels(reels){
   return {total:0, bonusSpins:0, big:false};
 }
 
-async function spinSlotMachine(){
+async function spinSlotMachine(fast){
+  fast = (fast === true); // schneller Modus nur für „Alle drehen“ (Auto-Dreh) — nie durch ein Klick-Event
   const name = slotMachinePlayer;
   if(!name || slotMachineSpinning) return;
   if(slotSpinsAvailable(name) < 1) return;
+  if(!fast) slotAutoSummary = null; // ein normaler Dreh räumt die Auto-Zusammenfassung weg
   slotMachineSpinning = true;
   logGamePlay("slot");
-  renderGameArea();
+  if(!fast) renderGameArea();
 
   // Verbraucht eine der heutigen 35 Drehungen — ganz unabhängig vom Jeton-Kontostand, der bleibt
   // unangetastet (Jetons werden nur durch Gewinne verändert, nicht durchs bloße Drehen).
@@ -7091,15 +7144,15 @@ async function spinSlotMachine(){
   // Dreh-Animation: langsamer und mit mehr Durchläufen, damit es wirklich wie ein drehendes Rad
   // wirkt und nicht nur wie zufälliges Geflacker.
   let ticks = 0;
-  const totalTicks = 22;
+  const totalTicks = fast ? 5 : 22;
   await new Promise(resolve=>{
     const interval = setInterval(()=>{
       slotMachineReels = randomSlotReels();
-      playSlotTick();
+      if(!fast) playSlotTick();
       renderSlotReelsOnly();
       ticks++;
       if(ticks >= totalTicks){ clearInterval(interval); resolve(); }
-    }, 160);
+    }, fast ? 70 : 160);
   });
 
   const finalReels = randomSlotReels();
@@ -7130,14 +7183,70 @@ async function spinSlotMachine(){
         lifetimeCoins:newLifetimeCoins, lifetimeCoupons:slotMachineLifetimeCoupons[name]||0
       });
     }catch(e){}
+    await slotRegisterDailyWin(name, result.total); // Tagesgewinn + ggf. neuer Rekord
     slotMachineLastResult = {win:true, totalAmount:result.total, bonusSpins:0, message: result.big ? t("slotBigWinMsg") : t("slotWinMsg")};
   }else{
-    playSlotLoseSound();
+    if(!fast) playSlotLoseSound();
     slotMachineLastResult = {win:false, totalAmount:0, bonusSpins:0, message:t("slotLoseMsg")};
   }
 
   slotMachineSpinning = false;
+  if(!fast) renderGameArea();
+  return result;
+}
+
+// ===== „Alle drehen“: dreht automatisch alle übrigen Drehungen hintereinander (schnell) und zeigt
+// den Gesamtgewinn. Jeder Dreh wird wie ein normaler Dreh gezählt und gespeichert.
+let slotAutoRunning = false;
+let slotAutoStop = false;
+let slotAutoSummary = null; // {spins, coins, bonusSpins, wins, running}
+function slotAutoBoxHtml(){
+  const sm = slotAutoSummary;
+  if(!sm) return "";
+  const bonusPart = sm.bonusSpins>0 ? ` <span class="slot-auto-bonus">+${sm.bonusSpins} 🎟️</span>` : "";
+  return `
+    <div class="slot-auto-box ${sm.running?"running":"done"}">
+      <div class="slot-auto-title">${sm.running ? `⚡ ${t("slotAutoRunning")} — ${sm.spins} ${t("slotAutoSpinsDone")}` : `✅ ${t("slotAutoDone")} — ${sm.spins} ${t("slotAutoSpinsDone")}`}</div>
+      <div class="slot-auto-total">${t("slotAutoTotalWin")}: <strong>+${sm.coins} 🪙</strong>${bonusPart}</div>
+      ${sm.running ? `<button type="button" class="chip" id="slotAutoStopBtn">⏹ ${t("slotAutoStop")}</button>` : ``}
+    </div>`;
+}
+function updateSlotAutoBox(){
+  const wrap = document.getElementById("slotAutoWrap");
+  if(!wrap) return;
+  wrap.innerHTML = slotAutoBoxHtml();
+  const stopBtn = document.getElementById("slotAutoStopBtn");
+  if(stopBtn) stopBtn.onclick = ()=>{ slotAutoStop = true; stopBtn.disabled = true; };
+}
+async function spinSlotAuto(){
+  const name = slotMachinePlayer;
+  if(!name || slotMachineSpinning || slotAutoRunning) return;
+  if(slotSpinsAvailable(name) < 1) return;
+  slotAutoRunning = true;
+  slotAutoStop = false;
+  slotMachineLastResult = null;
+  slotAutoSummary = {spins:0, coins:0, bonusSpins:0, wins:0, running:true};
   renderGameArea();
+  try{
+    while(!slotAutoStop && slotMachinePlayer===name && slotSpinsAvailable(name) >= 1){
+      if(!document.getElementById("slotReelsDisplay")) break; // Raum wurde verlassen
+      const r = await spinSlotMachine(true);
+      if(!r) break;
+      slotAutoSummary.spins++;
+      if(r.total > 0){ slotAutoSummary.coins += r.total; slotAutoSummary.wins++; }
+      if(r.bonusSpins > 0){ slotAutoSummary.bonusSpins += r.bonusSpins; slotAutoSummary.wins++; }
+      const left = document.getElementById("slotSpinsLeftValue");
+      if(left) left.textContent = slotSpinsAvailable(name);
+      updateSlotAutoBox();
+      const recWrap = document.getElementById("slotRecordWrap");
+      if(recWrap) recWrap.innerHTML = slotRecordHtml();
+      await new Promise(res=>setTimeout(res, 150));
+    }
+  }finally{
+    slotAutoRunning = false;
+    if(slotAutoSummary) slotAutoSummary.running = false;
+    renderGameArea();
+  }
 }
 // Zeichnet während der Dreh-Animation NUR die drei Walzen neu (nicht das ganze Panel) — sonst
 // würde bei jedem einzelnen Tick der komplette Bereich samt Eingabefeldern neu aufgebaut.
@@ -7401,6 +7510,7 @@ function renderSlotRoom(player){
   roomBody.innerHTML = `
     <div class="slot-stats-row">
       <span>🎟️ ${t("slotSpinsLeft")}: <strong id="slotSpinsLeftValue">${spinsLeft}</strong></span>
+      <span>🪙 ${t("slotTodayWon")}: <strong id="slotTodayWonValue">${player ? (slotDailyWon[player]||0) : 0}</strong></span>
     </div>
 
     <div class="slot-machine-frame">
@@ -7412,10 +7522,15 @@ function renderSlotRoom(player){
         <span class="slot-payout-inline-item">${t("slotAny2Label")}=${SLOT_PAYOUT_2X}</span>
       </div>
 
-      <button type="button" class="slot-spin-btn" id="slotSpinBtn" ${(slotMachineSpinning || !canAffordBet) ? "disabled" : ""}>
-        ${slotMachineSpinning ? "🎰 …" : (!canAffordBet ? (isWeekdayToday()?t("slotNoSpinsLeft"):t("slotWeekendClosed")) : "🎰 " + t("slotSpinBtn"))}
-      </button>
+      <div class="slot-spin-row">
+        <button type="button" class="slot-spin-btn" id="slotSpinBtn" ${(slotMachineSpinning || slotAutoRunning || !canAffordBet) ? "disabled" : ""}>
+          ${slotMachineSpinning ? "🎰 …" : (!canAffordBet ? (isWeekdayToday()?t("slotNoSpinsLeft"):t("slotWeekendClosed")) : "🎰 " + t("slotSpinBtn"))}
+        </button>
+        ${canAffordBet || slotAutoRunning ? `<button type="button" class="slot-spin-btn slot-auto-btn" id="slotAutoBtn" ${(slotMachineSpinning || slotAutoRunning || !canAffordBet) ? "disabled" : ""}>⚡ ${t("slotAutoBtn")} (${spinsLeft})</button>` : ``}
+      </div>
+      <div id="slotAutoWrap">${slotAutoBoxHtml()}</div>
     </div>
+    <div id="slotRecordWrap">${slotRecordHtml()}</div>
 
     ${slotMachineLastResult ? `
       <div class="slot-result ${slotMachineLastResult.win?"win":"lose"}">
@@ -7439,7 +7554,11 @@ function renderSlotRoom(player){
   `;
 
   const spinBtn = document.getElementById("slotSpinBtn");
-  if(spinBtn) spinBtn.onclick = spinSlotMachine;
+  if(spinBtn) spinBtn.onclick = ()=>spinSlotMachine(false);
+  const autoBtn = document.getElementById("slotAutoBtn");
+  if(autoBtn) autoBtn.onclick = spinSlotAuto;
+  const autoStopBtn = document.getElementById("slotAutoStopBtn");
+  if(autoStopBtn) autoStopBtn.onclick = ()=>{ slotAutoStop = true; autoStopBtn.disabled = true; };
   const guideToggle = document.getElementById("slotGuideToggle");
   if(guideToggle) guideToggle.onclick = ()=>{ slotGuideOpen = !slotGuideOpen; renderGameArea(); };
 }
@@ -10079,7 +10198,7 @@ const T = {
     gameAreaTitle:"Casino", gameAreaIntro:"Willkommen im Casino! Gewonnene Jetons kannst du unten an der Kasse in Kupons eintauschen — jeder Kupon senkt später deine Hinweis-Anzahl beim Tagesspiel um 1.",
     gameAreaInvite:"🎲 Wir laden dich ins Casino ein — versuch dein Glück!",
     slotSpinsLeft:"Drehungen heute übrig", slotCoinsLabel:"Jetons", slotCouponsLabel:"Kupons",
-    slotSpinBtn:"Drehen!", slotNoSpinsLeft:"Keine Drehungen mehr heute", slotWeekendClosed:"Am Wochenende geschlossen", slotPickPlayerHint:"Erst oben auswählen, wer dran ist.",
+    slotSpinBtn:"Drehen!", slotAutoBtn:"Alle drehen", slotAutoRunning:"Dreht automatisch", slotAutoSpinsDone:"gedreht", slotAutoDone:"Fertig", slotAutoTotalWin:"Gesamtgewinn", slotAutoHits:"Gewinnende Drehungen", slotRecordTitle:"Ewiger Gewinner", slotRecordNone:"noch niemand — wer holt sich den Titel?", slotRecordSub:"meiste Jetons an einem Tag, nur durch Slot-Drehungen", slotTodayWon:"Heute gewonnen", slotAutoStop:"Stopp", slotNoSpinsLeft:"Keine Drehungen mehr heute", slotWeekendClosed:"Am Wochenende geschlossen", slotPickPlayerHint:"Erst oben auswählen, wer dran ist.",
     slotBigWinMsg:"🎉 JACKPOT!", slotWinMsg:"🎉 Gewonnen!", slotLoseMsg:"Leider nichts — nächstes Mal!",
     slotBonusSpinsMsg:"🎁 Bonus! Extra-Drehungen für heute:",
     slotGuideTitle:"Wie funktioniert das Spiel?",
@@ -10427,7 +10546,7 @@ const T = {
     gameAreaTitle:"Casino", gameAreaIntro:"Casino'ya hoş geldin! Kazandığın jetonları aşağıdaki kasadan kupona çevirebilirsin — her kupon daha sonra günlük oyundaki ipucu sayını 1 azaltır.",
     gameAreaInvite:"🎲 Casino'ya davet ediyoruz seni — şansını dene!",
     slotSpinsLeft:"Bugün kalan çevirme", slotCoinsLabel:"Jeton", slotCouponsLabel:"Kupon",
-    slotSpinBtn:"Çevir!", slotNoSpinsLeft:"Bugün çevirme hakkın kalmadı", slotWeekendClosed:"Hafta sonu kapalı", slotPickPlayerHint:"Önce yukarıdan kimin oynadığını seç.",
+    slotSpinBtn:"Çevir!", slotAutoBtn:"Hepsini çevir", slotAutoRunning:"Otomatik çeviriyor", slotAutoSpinsDone:"çevrildi", slotAutoDone:"Bitti", slotAutoTotalWin:"Toplam kazanç", slotAutoHits:"Kazanan çevirme", slotRecordTitle:"Sonsuz kazanan", slotRecordNone:"henüz kimse yok — unvanı kim alacak?", slotRecordSub:"tek günde sadece slot çevirmeleriyle en çok jeton", slotTodayWon:"Bugün kazanılan", slotAutoStop:"Dur", slotNoSpinsLeft:"Bugün çevirme hakkın kalmadı", slotWeekendClosed:"Hafta sonu kapalı", slotPickPlayerHint:"Önce yukarıdan kimin oynadığını seç.",
     slotBigWinMsg:"🎉 JACKPOT!", slotWinMsg:"🎉 Kazandın!", slotLoseMsg:"Maalesef bu sefer olmadı — bir dahaki sefere!",
     slotBonusSpinsMsg:"🎁 Bonus! Bugün için ekstra çevirme:",
     slotGuideTitle:"Bu oyun nasıl oynanır?",
@@ -14335,7 +14454,6 @@ function openWordGameAdmin(){
   wordGameAdminSelectedDate = null;
   loadWordGameAdminData();
   loadSlotRedemptionsAdmin();
-  loadCasinoPlayStats();
 }
 let slotRedemptionsAdmin = []; // [{id, name, coinsSpent, couponsGained, ts}]
 let slotAdminGrantMsg = "";
@@ -14505,30 +14623,7 @@ function renderWordGameAdminBody(){
     </div>
   `;
 
-  // Casino-Spiel-Statistik: wie oft wurde welches Spiel gespielt — Tag/Woche/Monat/Gesamt.
-  const casinoStatsHtml = `
-    <div class="wg-admin-redemptions-section">
-      <div class="wg-admin-redemptions-title">📊 ${t("casinoStatsTitle")}</div>
-      ${casinoPlayStats ? `
-        <div class="casino-stats-table">
-          <div class="casino-stats-row casino-stats-header">
-            <span></span><span>${t("casinoStatsDay")}</span><span>${t("casinoStatsWeek")}</span><span>${t("casinoStatsMonth")}</span><span>${t("casinoStatsTotal")}</span>
-          </div>
-          ${CASINO_GAMES.map(g=>`
-            <div class="casino-stats-row">
-              <span>${t("casinoStatsGame_"+g)}</span>
-              <span>${casinoPlayStats.day[g]||0}</span>
-              <span>${casinoPlayStats.week[g]||0}</span>
-              <span>${casinoPlayStats.month[g]||0}</span>
-              <span><strong>${casinoPlayStats.total[g]||0}</strong></span>
-            </div>
-          `).join("")}
-        </div>
-      ` : `<p class="participant-hint">${t("statusLoading")}</p>`}
-    </div>
-  `;
-
-  body.innerHTML = selectHtmlStr + listHtml + redemptionsHtml + casinoStatsHtml;
+  body.innerHTML = selectHtmlStr + listHtml + redemptionsHtml;
   body.querySelectorAll(".wg-admin-redemption-done").forEach(btn=>{
     btn.onclick = ()=> markSlotRedemptionHandled(btn.dataset.redeemId);
   });
