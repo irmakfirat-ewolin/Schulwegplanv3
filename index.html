@@ -1206,14 +1206,36 @@
   .slot-auto-total{ font-size:22px; font-weight:900; margin:4px 0; }
   .slot-auto-total strong{ color:#ffd54a; }
   .slot-auto-bonus{ font-size:16px; font-weight:800; }
-  .slot-record-box{
-    margin-top:10px; padding:8px 12px; border-radius:12px; text-align:center;
-    font-size:13.5px; font-weight:700; line-height:1.4;
-    background:rgba(212,175,55,.13); border:1.5px solid rgba(212,175,55,.65);
+  .slot-stats-big{ gap:10px; padding:10px; align-items:stretch; }
+  .slot-stats-big .slot-stat-tile{
+    flex:1 1 140px; text-align:center; padding:10px 8px; border-radius:14px;
+    background:rgba(255,255,255,.07); border:1.5px solid rgba(255,255,255,.18);
   }
-  .slot-record-box strong{ font-weight:900; }
-  .slot-record-sub{ font-size:11.5px; font-weight:600; opacity:.7; margin-top:2px; }
-  .slot-record-none, .slot-record-date{ font-weight:600; opacity:.75; }
+  .slot-stat-label{ font-size:14px; font-weight:800; opacity:.95; margin-bottom:2px; }
+  .slot-stat-num{ display:block; font-size:40px; line-height:1.1; font-weight:900; }
+  .slot-stat-glow{
+    border-color:#ffd54a !important; background:rgba(255,213,74,.14) !important;
+    box-shadow:0 0 14px rgba(255,213,74,.55), inset 0 0 12px rgba(255,213,74,.18);
+  }
+  .slot-stat-coins{
+    font-size:50px; color:#ffe27a;
+    text-shadow:0 0 8px #ffd54a, 0 0 18px #ffb300, 0 0 30px rgba(255,170,0,.8);
+  }
+  .slot-record-box{
+    margin-top:14px; padding:14px 12px; border-radius:18px; text-align:center;
+    background:linear-gradient(160deg,rgba(212,175,55,.25),rgba(120,70,0,.25));
+    border:3px solid #ffd54a;
+    box-shadow:0 0 16px rgba(255,213,74,.6), 0 0 34px rgba(255,170,0,.35), inset 0 0 16px rgba(255,213,74,.2);
+  }
+  .slot-record-head{ font-size:18px; font-weight:900; color:#ffe9a8; letter-spacing:.5px; text-shadow:0 0 8px rgba(255,213,74,.8); }
+  .slot-record-name{ font-size:34px; font-weight:900; line-height:1.15; margin-top:4px; text-shadow:0 0 10px rgba(255,255,255,.35), 0 2px 0 rgba(0,0,0,.5); }
+  .slot-record-amount{
+    font-size:44px; font-weight:900; line-height:1.15; color:#ffe27a;
+    text-shadow:0 0 8px #ffd54a, 0 0 20px #ffb300, 0 0 32px rgba(255,170,0,.8);
+  }
+  .slot-record-date{ font-size:14px; font-weight:700; opacity:.85; margin-top:2px; }
+  .slot-record-sub{ font-size:12.5px; font-weight:600; opacity:.75; margin-top:6px; }
+  .slot-record-none{ font-size:17px; font-weight:800; margin-top:6px; }
   .slot-auto-hits{ font-size:13px; opacity:.85; margin-bottom:6px; }
   .slot-result{
     margin-top:12px; padding:10px; border-radius:12px;
@@ -6942,11 +6964,17 @@ async function slotRegisterDailyWin(name, amount){
 }
 function slotRecordHtml(){
   if(!slotRecord || !(slotRecord.amount>0)){
-    return `<div class="slot-record-box">🏆 ${t("slotRecordTitle")}: <span class="slot-record-none">${t("slotRecordNone")}</span><div class="slot-record-sub">${t("slotRecordSub")}</div></div>`;
+    return `<div class="slot-record-box"><div class="slot-record-head">🏆 ${t("slotRecordTitle")}</div><div class="slot-record-none">${t("slotRecordNone")}</div><div class="slot-record-sub">${t("slotRecordSub")}</div></div>`;
   }
   const d = String(slotRecord.date||"").split("-");
   const dateTxt = d.length===3 ? `${d[2]}.${d[1]}.${d[0]}` : "";
-  return `<div class="slot-record-box">🏆 ${t("slotRecordTitle")}: <strong style="color:${PERSON_COLORS[slotRecord.name]||'#ffd54a'};">${escapeHtml(slotRecord.name)}</strong> — <strong>${slotRecord.amount} 🪙</strong>${dateTxt ? ` <span class="slot-record-date">(${dateTxt})</span>` : ""}<div class="slot-record-sub">${t("slotRecordSub")}</div></div>`;
+  return `<div class="slot-record-box">
+    <div class="slot-record-head">🏆 ${t("slotRecordTitle")} 🏆</div>
+    <div class="slot-record-name" style="color:${PERSON_COLORS[slotRecord.name]||'#ffd54a'};">${escapeHtml(slotRecord.name)}</div>
+    <div class="slot-record-amount">${slotRecord.amount} 🪙</div>
+    ${dateTxt ? `<div class="slot-record-date">${dateTxt}</div>` : ""}
+    <div class="slot-record-sub">${t("slotRecordSub")}</div>
+  </div>`;
 }
 // Geräte-Sperre fürs Casino — genau wie beim Tagesspiel: ein Gerät gilt pro Tag für genau eine
 // Person. Verhindert, dass auf demselben Gerät am selben Tag für zwei verschiedene Personen
@@ -7508,9 +7536,15 @@ function renderSlotRoom(player){
   ).join("") + `<div class="slot-payout-row"><span class="slot-payout-symbols">${SLOT_BONUS_SYMBOL}${SLOT_BONUS_SYMBOL}${SLOT_BONUS_SYMBOL}</span><span>+${SLOT_BONUS_SPINS} 🎟️</span></div>`;
 
   roomBody.innerHTML = `
-    <div class="slot-stats-row">
-      <span>🎟️ ${t("slotSpinsLeft")}: <strong id="slotSpinsLeftValue">${spinsLeft}</strong></span>
-      <span>🪙 ${t("slotTodayWon")}: <strong id="slotTodayWonValue">${player ? (slotDailyWon[player]||0) : 0}</strong></span>
+    <div class="slot-stats-row slot-stats-big">
+      <div class="slot-stat-tile">
+        <div class="slot-stat-label">🎟️ ${t("slotSpinsLeft")}</div>
+        <strong class="slot-stat-num" id="slotSpinsLeftValue">${spinsLeft}</strong>
+      </div>
+      <div class="slot-stat-tile slot-stat-glow">
+        <div class="slot-stat-label">🪙 ${t("slotTodayWon")}</div>
+        <strong class="slot-stat-num slot-stat-coins" id="slotTodayWonValue">${player ? (slotDailyWon[player]||0) : 0}</strong>
+      </div>
     </div>
 
     <div class="slot-machine-frame">
