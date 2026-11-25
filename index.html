@@ -9038,6 +9038,18 @@ function refreshStatusChips(){
   });
 }
 
+// Welche Abhol-Listen eines Tages gelten wirklich? Ist „Abholung splitten“ AKTIV, gelten NUR die
+// beiden Kind-Felder (Eflin/Nezir) — die normalen Felder (people/secondPeople) sind dann in der
+// Tagesansicht gar nicht sichtbar und können alte Reste enthalten (z.B. wurde erst normal Hande
+// gewählt und danach gesplittet). Ist es AUS, gelten nur die normalen Felder; die Split-Felder sind
+// dann Reste. Ohne diese Trennung stand oben „Holt ab: Hande“, obwohl dort niemand mehr gewählt
+// war, und die Statistik zählte alte Reste mit.
+function abholActiveLists(abhol){
+  if(!abhol) return [];
+  const arr = x=> Array.isArray(x) ? x : [];
+  if(abhol.manualSplit) return [arr(abhol.eflinPeople), arr(abhol.nezirPeople)];
+  return [arr(abhol.people), arr(abhol.secondPeople)];
+}
 function dayStatusChips(day){
   const chips = [];
 
@@ -9047,7 +9059,18 @@ function dayStatusChips(day){
     chips.push({text:t("bringerFehlt"), tone:"warn"});
   }
 
-  if(day.abhol.people.length>0){
+  if(day.abhol.manualSplit){
+    // Gesplittete Abholung: pro Kind prüfen. Sind beide gleich besetzt, reicht ein Chip.
+    const ef = day.abhol.eflinPeople || [], nz = day.abhol.nezirPeople || [];
+    if(ef.length>0 && nz.length>0 && ef.join("|")===nz.join("|")){
+      chips.push({text:"🏡 "+t("holtAb")+": " + ef.join(", "), tone:"ok"});
+    }else{
+      [["Eflin", ef], ["Nezir", nz]].forEach(([kid, list])=>{
+        if(list.length>0) chips.push({text:"🏡 "+t("holtAb")+" ("+kid+"): " + list.join(", "), tone:"ok"});
+        else chips.push({text:t("holerFehlt")+" ("+kid+")", tone:"warn"});
+      });
+    }
+  }else if(day.abhol.people.length>0){
     chips.push({text:"🏡 "+t("holtAb")+": " + day.abhol.people.join(", "), tone:"ok"});
   }else{
     chips.push({text:t("holerFehlt"), tone:"warn"});
@@ -14118,12 +14141,8 @@ async function computeMonthWinner(monthKeyStr){
     const dd = allData[key];
     if(!dd) return;
     if(dd.bring && Array.isArray(dd.bring.people)) dd.bring.people.forEach(n=>{ counts[n]=(counts[n]||0)+1; });
-    if(dd.abhol && Array.isArray(dd.abhol.people)) dd.abhol.people.forEach(n=>{ counts[n]=(counts[n]||0)+1; });
-    // Zweite Abholung (Kurstag mit anderem Standort) zählt genauso mit — die Person holt ja auch ab.
-    if(dd.abhol && Array.isArray(dd.abhol.secondPeople)) dd.abhol.secondPeople.forEach(n=>{ counts[n]=(counts[n]||0)+1; });
-    // Manuell gesplittete Abholung (z.B. krankes Kind) — jedes der beiden Felder zählt separat.
-    if(dd.abhol && Array.isArray(dd.abhol.eflinPeople)) dd.abhol.eflinPeople.forEach(n=>{ counts[n]=(counts[n]||0)+1; });
-    if(dd.abhol && Array.isArray(dd.abhol.nezirPeople)) dd.abhol.nezirPeople.forEach(n=>{ counts[n]=(counts[n]||0)+1; });
+    // Zweite Abholung (Kurstag) bzw. manuell gesplittete Abholung zählen mit — jedes gültige Feld einzeln.
+    abholActiveLists(dd.abhol).forEach(list=> list.forEach(n=>{ counts[n]=(counts[n]||0)+1; }));
   });
   const names = Object.keys(counts);
   if(!names.length) return null;
@@ -14167,11 +14186,7 @@ async function checkForRankUps(){
     const d = allData[key];
     if(!d) return;
     if(d.bring && Array.isArray(d.bring.people)) d.bring.people.forEach(n=>{ bringCounts[n]=(bringCounts[n]||0)+1; });
-    if(d.abhol && Array.isArray(d.abhol.people)) d.abhol.people.forEach(n=>{ abholCounts[n]=(abholCounts[n]||0)+1; });
-    // Zweite Abholung (Kurstag mit anderem Standort) zählt genauso mit — die Person holt ja auch ab.
-    if(d.abhol && Array.isArray(d.abhol.secondPeople)) d.abhol.secondPeople.forEach(n=>{ abholCounts[n]=(abholCounts[n]||0)+1; });
-    if(d.abhol && Array.isArray(d.abhol.eflinPeople)) d.abhol.eflinPeople.forEach(n=>{ abholCounts[n]=(abholCounts[n]||0)+1; });
-    if(d.abhol && Array.isArray(d.abhol.nezirPeople)) d.abhol.nezirPeople.forEach(n=>{ abholCounts[n]=(abholCounts[n]||0)+1; });
+    abholActiveLists(d.abhol).forEach(list=> list.forEach(n=>{ abholCounts[n]=(abholCounts[n]||0)+1; }));
   });
 
   const allNames = NAMES_BASE.concat(GRANDPARENT_NAMES);
@@ -15700,19 +15715,7 @@ async function renderStatistics(){
     if(d.bring && Array.isArray(d.bring.people)){
       d.bring.people.forEach(n=>{ bringCounts[n] = (bringCounts[n]||0)+1; });
     }
-    if(d.abhol && Array.isArray(d.abhol.people)){
-      d.abhol.people.forEach(n=>{ abholCounts[n] = (abholCounts[n]||0)+1; });
-    }
-    // Zweite Abholung (Kurstag mit anderem Standort) zählt genauso mit — die Person holt ja auch ab.
-    if(d.abhol && Array.isArray(d.abhol.secondPeople)){
-      d.abhol.secondPeople.forEach(n=>{ abholCounts[n] = (abholCounts[n]||0)+1; });
-    }
-    if(d.abhol && Array.isArray(d.abhol.eflinPeople)){
-      d.abhol.eflinPeople.forEach(n=>{ abholCounts[n] = (abholCounts[n]||0)+1; });
-    }
-    if(d.abhol && Array.isArray(d.abhol.nezirPeople)){
-      d.abhol.nezirPeople.forEach(n=>{ abholCounts[n] = (abholCounts[n]||0)+1; });
-    }
+    abholActiveLists(d.abhol).forEach(list=> list.forEach(n=>{ abholCounts[n] = (abholCounts[n]||0)+1; }));
   });
 
   const allNames = Array.from(new Set([...getActiveNames(), ...Object.keys(bringCounts), ...Object.keys(abholCounts)]));
@@ -15734,13 +15737,10 @@ async function renderStatistics(){
     // niemandem deswegen abreißt (genau wie an schulfreien Tagen).
     if(dd && dd.sick && dd.sick.eflin && dd.sick.eflin.active && dd.sick.nezir && dd.sick.nezir.active) return;
     const bringPeople = (dd && dd.bring && Array.isArray(dd.bring.people)) ? dd.bring.people : [];
-    const abholPeopleMain = (dd && dd.abhol && Array.isArray(dd.abhol.people)) ? dd.abhol.people : [];
-    const abholPeopleSecond = (dd && dd.abhol && Array.isArray(dd.abhol.secondPeople)) ? dd.abhol.secondPeople : [];
-    const abholPeopleEflinSplit = (dd && dd.abhol && Array.isArray(dd.abhol.eflinPeople)) ? dd.abhol.eflinPeople : [];
-    const abholPeopleNezirSplit = (dd && dd.abhol && Array.isArray(dd.abhol.nezirPeople)) ? dd.abhol.nezirPeople : [];
+    const activeAbholLists = abholActiveLists(dd && dd.abhol);
     // Zweite Abholung (Kurstag mit anderem Standort) und manuell gesplittete Abholung (z.B. krankes
     // Kind) zählen für die Serie genauso wie die normale.
-    const abholPeople = abholPeopleMain.concat(abholPeopleSecond, abholPeopleEflinSplit, abholPeopleNezirSplit);
+    const abholPeople = [].concat(...activeAbholLists);
     allNames.forEach(n=>{
       if(bringPeople.includes(n)){
         curBringStreak[n] = (curBringStreak[n]||0)+1;
@@ -15838,10 +15838,7 @@ function statDayAbbrevs(dayData, field){
   if(field==="bring"){
     if(dayData.bring && Array.isArray(dayData.bring.people)) names.push(...dayData.bring.people);
   }else{
-    if(dayData.abhol && Array.isArray(dayData.abhol.people)) names.push(...dayData.abhol.people);
-    if(dayData.abhol && Array.isArray(dayData.abhol.secondPeople)) names.push(...dayData.abhol.secondPeople);
-    if(dayData.abhol && Array.isArray(dayData.abhol.eflinPeople)) names.push(...dayData.abhol.eflinPeople);
-    if(dayData.abhol && Array.isArray(dayData.abhol.nezirPeople)) names.push(...dayData.abhol.nezirPeople);
+    abholActiveLists(dayData.abhol).forEach(list=> names.push(...list));
   }
   // Pro Person nur einmal anzeigen — auch wenn sie (z.B. durch alte, in der aktuellen Tagesansicht
   // gar nicht mehr sichtbare Kursfeld-Reste) in mehreren der obigen Listen gleichzeitig steht. Für
@@ -17556,6 +17553,7 @@ function bindEvents(){
           if(i>-1) arr.splice(i,1); else arr.push(n);
           setChipColor(chip, n, arr.includes(n));
           markDirty();
+          refreshStatusChips(); // Statuszeile oben sofort aktualisieren (z.B. „Abholer fehlt (Nezir)“)
         };
       });
       const timeEl = document.getElementById("abhol"+(kid==="eflin"?"Eflin":"Nezir")+"Time");
