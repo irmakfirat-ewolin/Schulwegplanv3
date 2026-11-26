@@ -1638,6 +1638,12 @@
     padding:0;
     flex-shrink:0;
   }
+  .cal-event-note{
+    display:block; margin-top:8px; padding:10px 12px; border-radius:10px;
+    background:rgba(127,127,127,.14); border-left:4px solid var(--violet);
+    font-size:15.5px; line-height:1.5; white-space:pre-wrap; overflow-wrap:anywhere; color:var(--ink);
+  }
+  .sy-note{ width:100%; box-sizing:border-box; min-height:110px; font-size:15px; line-height:1.45; }
   .cal-event-time{
     display:inline-block;
     font-size:11.5px;
@@ -9604,6 +9610,7 @@ function renderEventsList(){
           ${e.hasEndDate && e.endDate && e.endDate!==e.startDate ? `<span class="cal-event-time">🗓️ ${formatDateShort(e.startDate)} – ${formatDateShort(e.endDate)}</span>` : ""}
           ${e.hasTime && e.timeStart ? `<span class="cal-event-time">${e.timeStart}${e.hasEndTime&&e.timeEnd?"–"+e.timeEnd:""}</span>` : ""}
           ${e.location ? `<span class="cal-event-time">📍 ${escapeHtml(e.location)}</span>` : ""}
+          ${(e.note||"").trim() ? `<div class="cal-event-note">${escapeHtml(e.note)}</div>` : ""}
           ${e.kid ? `<span class="cal-event-kid" style="background:${KID_COLORS[e.kid]};">${e.kid==="eflin"?"E":"N"}</span>` : ""}
           ${e.photos && e.photos.length>0 ? `
             <div class="cal-event-photos">
@@ -10170,7 +10177,7 @@ const T = {
     globalSaved:"gespeichert · für alle sichtbar", globalSaveFailed:"Speichern fehlgeschlagen (",
     photosEvent:"Fotos & Dokumente (z. B. Einladung, Zettel, PDF)", placeholderKinder:"Was steht an? (z. B. Laternenfest)",
     placeholderEltern:"z. B. muss länger arbeiten", placeholderRemark:"z. B. Basketballkurs",
-    placeholderEventName:"Bezeichnung, z. B. Elternabend", placeholderDuaNotice:"z. B. Kinderwagen oder Scooter mitnehmen",
+    placeholderEventName:"Bezeichnung, z. B. Elternabend", eventNoteLabel:"Notizen / Infos", eventNotePlaceholder:"Hier Infos zum Termin eintragen — z. B. was mitbringen, Treffpunkt, Ablauf, Kosten …", placeholderDuaNotice:"z. B. Kinderwagen oder Scooter mitnehmen",
     placeholderNotice:"z. B. Turnsackerl mitnehmen", photoNameOptional:"Name (optional)",
     schoolYear:"🗓️ Ferien, schulfreie Tage<br>& wichtige Termine",
     schoolYearToggleLabel:"Aktivieren (gilt das ganze Schuljahr, an jedem Tag sichtbar)",
@@ -10518,7 +10525,7 @@ const T = {
     globalSaved:"kaydedildi · herkes için görünür", globalSaveFailed:"Kaydetme başarısız (",
     photosEvent:"Fotoğraflar & Belgeler (örn. davetiye, kağıt, PDF)", placeholderKinder:"Ne var? (örn. Fener Bayramı)",
     placeholderEltern:"örn. daha uzun çalışmak zorunda", placeholderRemark:"örn. Basketbol kursu",
-    placeholderEventName:"Başlık, örn. Veli Toplantısı", placeholderDuaNotice:"örn. bebek arabası veya scooter götürün",
+    placeholderEventName:"Başlık, örn. Veli Toplantısı", eventNoteLabel:"Notlar / Bilgiler", eventNotePlaceholder:"Randevu hakkında bilgileri buraya yaz — örn. ne getirilecek, buluşma yeri, program, ücret …", placeholderDuaNotice:"örn. bebek arabası veya scooter götürün",
     placeholderNotice:"örn. spor çantası götürün", photoNameOptional:"İsim (opsiyonel)",
     schoolYear:"🗓️ Tatiller, okulsuz günler<br>& önemli randevular",
     schoolYearToggleLabel:"Etkinleştir (tüm okul yılı boyunca, her gün görünür)",
@@ -11071,7 +11078,7 @@ function normalizeSchoolYearEvent(e){
     hasTime:!!e.hasTime, timeStart:e.timeStart||"", hasEndTime:!!e.hasEndTime, timeEnd:e.timeEnd||"",
     kid:(e.kid==="eflin"||e.kid==="nezir")?e.kid:"", location:e.location||"",
     participants:Array.isArray(e.participants)?e.participants:[],
-    text:e.text||"", photos:normalizePhotos(e.photos), schoolFree:!!e.schoolFree
+    text:e.text||"", note:e.note||"", photos:normalizePhotos(e.photos), schoolFree:!!e.schoolFree
   };
 }
 
@@ -16672,6 +16679,8 @@ function renderSchoolYearList(){
             🏖️ ${t("schoolFreeLabel")}
           </label>
           <input type="text" class="sy-location" placeholder="${t("locEvent")}" value="${escapeHtml(e.location||"")}" style="margin-top:10px;">
+          <label class="field-label" style="margin-top:10px;font-size:13px;">📝 ${t("eventNoteLabel")}</label>
+          <textarea class="sy-note autogrow" rows="5" placeholder="${t("eventNotePlaceholder")}">${escapeHtml(e.note||"")}</textarea>
           <label class="field-label" style="margin-top:10px;font-size:13px;">${t("whichKid")}</label>
           <div class="chips sy-kid-chips">
             <button type="button" class="chip ${e.kid==="eflin"?"selected":""}" data-kid="eflin"${e.kid==="eflin"?` style="background:${KID_COLORS.eflin};border-color:${KID_COLORS.eflin};color:#fff;"`:""}>E — Eflin</button>
@@ -16736,6 +16745,11 @@ function renderSchoolYearList(){
     if(textEl) textEl.oninput = ev=>{ e.text = ev.target.value; autoGrow(ev.target); globalDirty = true; };
     const locEl = detail.querySelector(".sy-location");
     if(locEl) locEl.oninput = ev=>{ e.location = ev.target.value; globalDirty = true; };
+    const noteEl = detail.querySelector(".sy-note");
+    if(noteEl){
+      autoGrow(noteEl);
+      noteEl.oninput = ev=>{ e.note = ev.target.value; autoGrow(ev.target); globalDirty = true; };
+    }
     const startEl = detail.querySelector(".sy-start-date");
     if(startEl) startEl.onchange = ev=>{ e.startDate = ev.target.value; globalDirty = true; renderSchoolYearList(); };
     const endToggle = detail.querySelector(".sy-has-end-date");
@@ -17205,7 +17219,7 @@ function renderGlobalPanel(){
         selectedSchoolYearMonth = months[0].key;
       }
       const defaultDate = selectedSchoolYearMonth + "-01";
-      globalData.schoolYearEvents.push({startDate:defaultDate, hasEndDate:false, endDate:"", hasTime:false, timeStart:"", hasEndTime:false, timeEnd:"", kid:"", location:"", participants:[], text:"", photos:[]});
+      globalData.schoolYearEvents.push({startDate:defaultDate, hasEndDate:false, endDate:"", hasTime:false, timeStart:"", hasEndTime:false, timeEnd:"", kid:"", location:"", participants:[], text:"", note:"", photos:[]});
       expandedSchoolYearEntries.add(globalData.schoolYearEvents.length-1);
       renderSchoolYearList();
       globalDirty = true;
