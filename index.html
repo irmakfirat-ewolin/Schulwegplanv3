@@ -1258,6 +1258,8 @@
     text-align:center;
   }
   .wg-live-resume-text{ color:#fff; font-size:14px; font-weight:700; }
+  .readiness-inactive > :not(.readiness-inactive-note){ opacity:.4; pointer-events:none; filter:grayscale(.6); }
+  .readiness-inactive-note{ opacity:1 !important; pointer-events:auto !important; filter:none !important; font-weight:700; }
   .abhol-split-toggle{ display:flex; align-items:center; gap:8px; margin:6px 0 4px; }
   .abhol-split-toggle label{ font-size:13px; font-weight:700; color:var(--ink); cursor:pointer; }
   .stundentafel-box{
@@ -3537,7 +3539,7 @@ function renderSchoolDayCounterBody(){
 
 function emptyDay(){
   return {
-    bring:{people:[], time:"08:00"},
+    bring:{people:[], time:"08:00", manualSplit:false, eflinPeople:[], eflinTime:"08:00", nezirPeople:[], nezirTime:"08:00"},
     abhol:{people:[], time:"16:30", secondPeople:[], secondTime:"", ownHomeIfNotPicked:false, manualSplit:false, eflinPeople:[], eflinTime:"16:30", nezirPeople:[], nezirTime:"16:30"},
     sick:{eflin:{active:false,reason:"",endDate:""}, nezir:{active:false,reason:"",endDate:""}},
     bringPhoto:{url:"",name:""},
@@ -3585,7 +3587,7 @@ function normalizeElternHinweis(e){
 
 function mergeDay(parsed){
   const day = emptyDay();
-  day.bring = Object.assign({people:[],time:""}, parsed.bring||{});
+  day.bring = Object.assign({people:[],time:"",manualSplit:false,eflinPeople:[],eflinTime:"",nezirPeople:[],nezirTime:""}, parsed.bring||{});
   day.abhol = Object.assign({people:[],time:"",secondPeople:[],secondTime:"",ownHomeIfNotPicked:false,manualSplit:false,eflinPeople:[],eflinTime:"",nezirPeople:[],nezirTime:""}, parsed.abhol||{});
   day.sick = {
     eflin: Object.assign({active:false,reason:"",endDate:""}, (parsed.sick&&parsed.sick.eflin)||{}),
@@ -9072,10 +9074,34 @@ function abholActiveLists(abhol){
   if(abhol.manualSplit) return [arr(abhol.eflinPeople), arr(abhol.nezirPeople)];
   return [arr(abhol.people), arr(abhol.secondPeople)];
 }
+// Wie bei der Abholung: ist „Bringen splitten“ AKTIV, gelten nur die beiden Kind-Felder.
+function bringActiveLists(bring){
+  if(!bring) return [];
+  const arr = x=> Array.isArray(x) ? x : [];
+  if(bring.manualSplit) return [arr(bring.eflinPeople), arr(bring.nezirPeople)];
+  return [arr(bring.people)];
+}
+// Früheste gültige Bring-/Abholzeit (in Minuten) — bei gesplitteter Eintragung die früheste der beiden Kinder.
+function activeTimeMinutes(block, splitKeys){
+  if(!block) return null;
+  const times = block.manualSplit ? splitKeys.map(k=>block[k]) : [block.time];
+  const mins = times.map(parseTimeToMinutes).filter(m=>m!=null);
+  return mins.length ? Math.min(...mins) : null;
+}
 function dayStatusChips(day){
   const chips = [];
 
-  if(day.bring.people.length>0){
+  if(day.bring.manualSplit){
+    const ef = day.bring.eflinPeople || [], nz = day.bring.nezirPeople || [];
+    if(ef.length>0 && nz.length>0 && ef.join("|")===nz.join("|")){
+      chips.push({text:"🎒 "+t("bringt")+": " + ef.join(", "), tone:"ok"});
+    }else{
+      [["Eflin", ef], ["Nezir", nz]].forEach(([kid, list])=>{
+        if(list.length>0) chips.push({text:"🎒 "+t("bringt")+" ("+kid+"): " + list.join(", "), tone:"ok"});
+        else chips.push({text:t("bringerFehlt")+" ("+kid+")", tone:"warn"});
+      });
+    }
+  }else if(day.bring.people.length>0){
     chips.push({text:"🎒 "+t("bringt")+": " + day.bring.people.join(", "), tone:"ok"});
   }else{
     chips.push({text:t("bringerFehlt"), tone:"warn"});
@@ -9102,7 +9128,7 @@ function dayStatusChips(day){
   }
 
   const selfTravel = day.readiness.child==="nezir" && day.readiness.transport;
-  if(!day.readiness.child || (!day.readiness.time && !selfTravel)){
+  if(!day.bring.manualSplit && (!day.readiness.child || (!day.readiness.time && !selfTravel))){
     chips.push({text:t("bereitFehlt"), tone:"warn"});
   }
   if(selfTravel){
@@ -9174,8 +9200,8 @@ function renderSchoolCountdown(){
   const isSchoolDay = computeSchoolDayInfo(currentDate).isSchoolDay;
   if(!isToday || !isSchoolDay){ box.innerHTML = ""; return; }
 
-  const bringMin = parseTimeToMinutes(currentDay.bring.time);
-  const abholMin = parseTimeToMinutes(currentDay.abhol.time);
+  const bringMin = activeTimeMinutes(currentDay.bring, ["eflinTime","nezirTime"]);
+  const abholMin = activeTimeMinutes(currentDay.abhol, ["eflinTime","nezirTime"]);
   const end = schoolEndTimeForDate(currentDate);
   const endMin = end.h*60 + end.m;
 
@@ -9313,8 +9339,8 @@ async function copySickToDays(kid, dates, sickData){
     // Sind dadurch (bzw. schon vorher) beide Kinder an diesem Zukunftstag krank, auch dort eine
     // evtl. vorhandene Bring/Abhol-Eintragung entfernen — aus demselben Grund wie am aktuellen Tag.
     if(obj.sick.eflin.active && obj.sick.nezir.active){
-      if(obj.bring) obj.bring.people = [];
-      if(obj.abhol){ obj.abhol.people = []; obj.abhol.secondPeople = []; }
+      if(obj.bring){ obj.bring.people = []; obj.bring.eflinPeople = []; obj.bring.nezirPeople = []; }
+      if(obj.abhol){ obj.abhol.people = []; obj.abhol.secondPeople = []; obj.abhol.eflinPeople = []; obj.abhol.nezirPeople = []; }
     }
     try{
       await cloudStore.set(key, JSON.stringify(obj));
@@ -9371,11 +9397,26 @@ function renderDay(){
 
     <section class="field c-amber">
       <label class="field-label">${t("bring")}</label>
-      <div class="${(bringLocked||bothSickToday)?"chips-locked":""} bring-chips-wrap">${chipsHtml("bringChips", day.bring.people)}<span class="rank-title-popup" id="bringTitlePopup"></span></div>
-      ${bringLocked ? `<p class="participant-hint">🔒 ${isPastDay ? t("pastDayLocked") : t("bringTimeLocked")} <button type="button" class="admin-unlock-link" data-unlock-date="${dateKey(currentDate)}">${t("adminUnlockLink")}</button></p>` : ""}
-      <div class="row2">
-        <div>${selectHtml("bringTime", TIMES_15, day.bring.time, bringLocked)}</div>
+      <div class="abhol-split-toggle">
+        <input type="checkbox" id="bringManualSplit" ${day.bring.manualSplit?"checked":""} ${bringLocked?"disabled":""}>
+        <label for="bringManualSplit">✂️ ${t("bringSplitLabel")}</label>
       </div>
+      ${bringLocked ? `<p class="participant-hint">🔒 ${isPastDay ? t("pastDayLocked") : t("bringTimeLocked")} <button type="button" class="admin-unlock-link" data-unlock-date="${dateKey(currentDate)}">${t("adminUnlockLink")}</button></p>` : ""}
+      ${day.bring.manualSplit ? `
+        <p class="participant-hint">${t("bringSplitHint")}</p>
+        <label class="field-label" style="margin-top:10px;color:${KID_COLORS.eflin};">👧 Eflin — ${t("bring")}</label>
+        <div class="${(bringLocked||bothSickToday)?"chips-locked":""} bring-chips-wrap">${chipsHtml("bringEflinChips", day.bring.eflinPeople)}</div>
+        <div class="row2"><div>${selectHtml("bringEflinTime", TIMES_15, day.bring.eflinTime, bringLocked)}</div></div>
+
+        <label class="field-label" style="margin-top:14px;color:${KID_COLORS.nezir};">👦 Nezir — ${t("bring")}</label>
+        <div class="${(bringLocked||bothSickToday)?"chips-locked":""} bring-chips-wrap">${chipsHtml("bringNezirChips", day.bring.nezirPeople)}</div>
+        <div class="row2"><div>${selectHtml("bringNezirTime", TIMES_15, day.bring.nezirTime, bringLocked)}</div></div>
+      ` : `
+        <div class="${(bringLocked||bothSickToday)?"chips-locked":""} bring-chips-wrap">${chipsHtml("bringChips", day.bring.people)}<span class="rank-title-popup" id="bringTitlePopup"></span></div>
+        <div class="row2">
+          <div>${selectHtml("bringTime", TIMES_15, day.bring.time, bringLocked)}</div>
+        </div>
+      `}
     </section>
 
     ${(() => {
@@ -9441,6 +9482,8 @@ function renderDay(){
 
     ${sickToday ? `` : `
     <section class="field c-teal readiness-section">
+      <div class="readiness-core ${day.bring.manualSplit?"readiness-inactive":""}">
+      ${day.bring.manualSplit ? `<p class="participant-hint readiness-inactive-note">ℹ️ ${t("readinessInactiveBringSplit")}</p>` : ""}
       <label class="field-label">${t("readiness")}</label>
       <p class="participant-hint" style="margin-bottom:6px;">${t("readinessHint")}</p>
       <div class="chips readiness-chips-row ${readinessLocked?"chips-locked":""}" id="readinessChildChips">
@@ -9458,6 +9501,8 @@ function renderDay(){
       ${day.readiness.child==="nezir" && day.readiness.transport ? `<div class="transport-notice">${day.readiness.transport==="bike" ? t("transportNoticeBike") : t("transportNoticeScooter")}</div>` : ``}
       <div class="row2" id="readyTimeWrap" style="margin-top:6px;display:${(day.readiness.child && !(day.readiness.child==="nezir" && day.readiness.transport))?"flex":"none"};">
         <div>${selectHtml("readyTime", TIMES_5, day.readiness.time, readinessLocked)}</div>
+      </div>
+
       </div>
 
       <label class="field-label" style="margin-top:16px;font-size:14px;">🥐 ${t("snackLabel")}</label>
@@ -10433,7 +10478,7 @@ const T = {
     rouletteGuideText2:"Rot/Schwarz, Gerade/Ungerade und 1-18/19-36 zahlen das Doppelte (2x). Die drei Zwölferblöcke (1-12 usw.) und die drei Spalten zahlen das Dreifache (3x). Eine einzelne Zahl zahlt das 36-fache, ist aber am unwahrscheinlichsten.",
     rouletteGuideText3:"Die Kugel landet auf einer Zahl von 0 bis 36 (0 ist grün, alle anderen je zur Hälfte rot/schwarz). Alle passenden Felder gewinnen gleichzeitig — man kann also auf mehrere Felder gleichzeitig setzen.",
     wordGameLiveResumeText:"spielt gerade auf einem anderen Gerät. Bist du das?", wordGameLiveResumeYes:"Ja, weiterspielen", wordGameLiveResumeNo:"Nein, nicht ich",
-    abholSplitLabel:"Abholung splitten (getrennte Abholung pro Kind)", abholSplitHint:"Z.B. wenn ein Kind krank abgeholt werden muss. Eine Person kann hier auch für beide Kinder eingetragen werden — zählt dann zweimal.",
+    bringSplitLabel:"Bringen splitten (getrenntes Bringen pro Kind)", bringSplitHint:"Z.B. wenn die Kinder getrennt in die Schule gebracht werden. Eine Person kann hier auch für beide Kinder eingetragen werden — zählt dann zweimal.", readinessInactiveBringSplit:"Bringen ist gesplittet — jedes Kind geht für sich, die Bereitschaftszeit ist deshalb nicht aktiv.", abholSplitLabel:"Abholung splitten (getrennte Abholung pro Kind)", abholSplitHint:"Z.B. wenn ein Kind krank abgeholt werden muss. Eine Person kann hier auch für beide Kinder eingetragen werden — zählt dann zweimal.",
     sickLabel:"Krank", sickBannerSuffix:"ist heute krank",
     sickReasonPlaceholder:"Was hat sie/er? (z.B. Fieber, Husten …)", sickEndDateLabel:"Voraussichtliches Ende",
     sickCopyLabel:"Auf kommende Tage übertragen (gilt nur für diese Tage, nicht automatisch für später):",
@@ -10781,7 +10826,7 @@ const T = {
     rouletteGuideText2:"Kırmızı/Siyah, Çift/Tek ve 1-18/19-36 iki katı (2x) kazandırır. Üç düzine (1-12 gibi) ve üç sütun üç katı (3x) kazandırır. Tek bir sayı 36 katı kazandırır ama çıkma ihtimali en düşük olanıdır.",
     rouletteGuideText3:"Top 0 ile 36 arasında bir sayıya düşer (0 yeşildir, diğerleri yarı yarıya kırmızı/siyah). Tutan tüm alanlar aynı anda kazanır — yani birden fazla alana aynı anda bahis koyabilirsin.",
     wordGameLiveResumeText:"şu an başka bir cihazda oynuyor. Bu sen misin?", wordGameLiveResumeYes:"Evet, devam et", wordGameLiveResumeNo:"Hayır, ben değilim",
-    abholSplitLabel:"Alımı ayır (her çocuk için ayrı alım)", abholSplitHint:"Örn. bir çocuk hasta olup okuldan alınması gerekirse. Aynı kişi burada her iki çocuk için de girilebilir — bu durumda iki kez sayılır.",
+    bringSplitLabel:"Götürmeyi ayır (her çocuk için ayrı götürme)", bringSplitHint:"Örn. çocuklar okula ayrı ayrı götürülüyorsa. Aynı kişi burada her iki çocuk için de girilebilir — bu durumda iki kez sayılır.", readinessInactiveBringSplit:"Götürme ayrıldı — her çocuk kendi başına gidiyor, bu yüzden hazır olma saati aktif değil.", abholSplitLabel:"Alımı ayır (her çocuk için ayrı alım)", abholSplitHint:"Örn. bir çocuk hasta olup okuldan alınması gerekirse. Aynı kişi burada her iki çocuk için de girilebilir — bu durumda iki kez sayılır.",
     sickLabel:"Hasta", sickBannerSuffix:"bugün hasta",
     sickReasonPlaceholder:"Neyi var? (örn. ateş, öksürük …)", sickEndDateLabel:"Tahmini bitiş tarihi",
     sickCopyLabel:"Gelecek günlere aktar (sadece o günler için geçerli, otomatik devam etmez):",
@@ -14163,7 +14208,7 @@ async function computeMonthWinner(monthKeyStr){
     if(dParts[0]!==y || dParts[1]!==mo) return;
     const dd = allData[key];
     if(!dd) return;
-    if(dd.bring && Array.isArray(dd.bring.people)) dd.bring.people.forEach(n=>{ counts[n]=(counts[n]||0)+1; });
+    bringActiveLists(dd.bring).forEach(list=> list.forEach(n=>{ counts[n]=(counts[n]||0)+1; }));
     // Zweite Abholung (Kurstag) bzw. manuell gesplittete Abholung zählen mit — jedes gültige Feld einzeln.
     abholActiveLists(dd.abhol).forEach(list=> list.forEach(n=>{ counts[n]=(counts[n]||0)+1; }));
   });
@@ -14208,7 +14253,7 @@ async function checkForRankUps(){
     if(dateStr < STAT_START || dateStr >= todayKeyStr) return;
     const d = allData[key];
     if(!d) return;
-    if(d.bring && Array.isArray(d.bring.people)) d.bring.people.forEach(n=>{ bringCounts[n]=(bringCounts[n]||0)+1; });
+    bringActiveLists(d.bring).forEach(list=> list.forEach(n=>{ bringCounts[n]=(bringCounts[n]||0)+1; }));
     abholActiveLists(d.abhol).forEach(list=> list.forEach(n=>{ abholCounts[n]=(abholCounts[n]||0)+1; }));
   });
 
@@ -15735,9 +15780,7 @@ async function renderStatistics(){
     if(dateStr < STAT_START || dateStr >= todayKey) return; // nur abgeschlossene Tage ab Startdatum
     const d = allData[key];
     if(!d) return;
-    if(d.bring && Array.isArray(d.bring.people)){
-      d.bring.people.forEach(n=>{ bringCounts[n] = (bringCounts[n]||0)+1; });
-    }
+    bringActiveLists(d.bring).forEach(list=> list.forEach(n=>{ bringCounts[n] = (bringCounts[n]||0)+1; }));
     abholActiveLists(d.abhol).forEach(list=> list.forEach(n=>{ abholCounts[n] = (abholCounts[n]||0)+1; }));
   });
 
@@ -15759,7 +15802,7 @@ async function renderStatistics(){
     // zählt weder als Treffer noch als Lücke und wird komplett übersprungen, damit die Serie von
     // niemandem deswegen abreißt (genau wie an schulfreien Tagen).
     if(dd && dd.sick && dd.sick.eflin && dd.sick.eflin.active && dd.sick.nezir && dd.sick.nezir.active) return;
-    const bringPeople = (dd && dd.bring && Array.isArray(dd.bring.people)) ? dd.bring.people : [];
+    const bringPeople = [].concat(...bringActiveLists(dd && dd.bring));
     const activeAbholLists = abholActiveLists(dd && dd.abhol);
     // Zweite Abholung (Kurstag mit anderem Standort) und manuell gesplittete Abholung (z.B. krankes
     // Kind) zählen für die Serie genauso wie die normale.
@@ -15859,7 +15902,7 @@ function statDayAbbrevs(dayData, field){
   if(!dayData) return [];
   const names = [];
   if(field==="bring"){
-    if(dayData.bring && Array.isArray(dayData.bring.people)) names.push(...dayData.bring.people);
+    bringActiveLists(dayData.bring).forEach(list=> names.push(...list));
   }else{
     abholActiveLists(dayData.abhol).forEach(list=> names.push(...list));
   }
@@ -17516,7 +17559,33 @@ function bindEvents(){
   const exceptionsToggle = document.getElementById("exceptionsToggleLabel");
   if(exceptionsToggle) exceptionsToggle.onclick = ()=>{ exceptionsOpen = !exceptionsOpen; renderDay(); };
 
-  if(!bringLocked && !bothSickToday){
+  const bringManualSplitEl = document.getElementById("bringManualSplit");
+  if(bringManualSplitEl) bringManualSplitEl.onchange = e=>{
+    day.bring.manualSplit = e.target.checked;
+    markDirty();
+    renderDay();
+  };
+  if(day.bring.manualSplit && !bringLocked && !bothSickToday){
+    ["eflin","nezir"].forEach(kid=>{
+      const chipsEl = document.getElementById("bring"+(kid==="eflin"?"Eflin":"Nezir")+"Chips");
+      if(chipsEl) chipsEl.querySelectorAll(".chip").forEach(chip=>{
+        chip.onclick = ()=>{
+          const n = chip.dataset.name;
+          const arr = day.bring[kid+"People"];
+          const i = arr.indexOf(n);
+          if(i>-1) arr.splice(i,1); else arr.push(n);
+          setChipColor(chip, n, arr.includes(n));
+          markDirty();
+          refreshStatusChips();
+        };
+      });
+    });
+  }
+  ["eflin","nezir"].forEach(kid=>{
+    const timeEl = document.getElementById("bring"+(kid==="eflin"?"Eflin":"Nezir")+"Time");
+    if(timeEl) timeEl.onchange = e=>{ day.bring[kid+"Time"] = e.target.value; markDirty(); renderSchoolCountdown(); };
+  });
+  if(!day.bring.manualSplit && !bringLocked && !bothSickToday){
     document.getElementById("bringChips").querySelectorAll(".chip").forEach(chip=>{
       chip.onclick = ()=>{
         const n = chip.dataset.name;
@@ -17530,7 +17599,8 @@ function bindEvents(){
       };
     });
   }
-  document.getElementById("bringTime").onchange = e=>{ day.bring.time = e.target.value; markDirty(); renderSchoolCountdown(); };
+  const bringTimeEl = document.getElementById("bringTime");
+  if(bringTimeEl) bringTimeEl.onchange = e=>{ day.bring.time = e.target.value; markDirty(); renderSchoolCountdown(); };
 
   document.querySelectorAll(".admin-unlock-link[data-unlock-date]").forEach(btn=>{
     btn.onclick = ()=>{
@@ -17658,8 +17728,8 @@ function bindEvents(){
       // abwählen — sonst würde diese Person fälschlich für einen Tag gezählt, an dem gar kein
       // Bringen/Abholen stattfand (Rang & Statistik würden sonst verfälscht).
       if(day.sick.eflin.active && day.sick.nezir.active){
-        day.bring.people = [];
-        day.abhol.people = [];
+        day.bring.people = []; day.bring.eflinPeople = []; day.bring.nezirPeople = [];
+        day.abhol.people = []; day.abhol.eflinPeople = []; day.abhol.nezirPeople = [];
         day.abhol.secondPeople = [];
       }
       markDirty();
