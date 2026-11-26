@@ -1996,6 +1996,22 @@
     padding:10px 12px;
     cursor:pointer;
   }
+  .sy-entry-main{ flex:1; min-width:0; }
+  .sy-entry-meta{ display:flex; align-items:center; flex-wrap:wrap; gap:4px 8px; }
+  .sy-entry-people{ font-size:11px; color:var(--ink-soft); font-weight:600; }
+  .sy-entry-title{
+    margin-top:3px; font-size:16px; font-weight:700; line-height:1.3; color:var(--ink);
+    display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden;
+    overflow-wrap:anywhere;
+  }
+  .sy-date-label{ margin-top:10px; font-size:13px; }
+  .sy-date-big{
+    display:block; width:100%; box-sizing:border-box; min-height:54px;
+    -webkit-appearance:none; appearance:none; text-align:left;
+    font-size:22px !important; font-weight:800; padding:10px 14px !important;
+    border:2px solid var(--violet); border-radius:12px;
+    background:var(--paper); color:var(--ink); font-family:inherit; margin-bottom:6px;
+  }
   .sy-entry-date{
     font-weight:700;
     font-size:13px;
@@ -10177,7 +10193,7 @@ const T = {
     globalSaved:"gespeichert · für alle sichtbar", globalSaveFailed:"Speichern fehlgeschlagen (",
     photosEvent:"Fotos & Dokumente (z. B. Einladung, Zettel, PDF)", placeholderKinder:"Was steht an? (z. B. Laternenfest)",
     placeholderEltern:"z. B. muss länger arbeiten", placeholderRemark:"z. B. Basketballkurs",
-    placeholderEventName:"Bezeichnung, z. B. Elternabend", eventNoteLabel:"Notizen / Infos", eventNotePlaceholder:"Hier Infos zum Termin eintragen — z. B. was mitbringen, Treffpunkt, Ablauf, Kosten …", placeholderDuaNotice:"z. B. Kinderwagen oder Scooter mitnehmen",
+    placeholderEventName:"Bezeichnung, z. B. Elternabend", syDateLabel:"Datum", eventNoteLabel:"Notizen / Infos", eventNotePlaceholder:"Hier Infos zum Termin eintragen — z. B. was mitbringen, Treffpunkt, Ablauf, Kosten …", placeholderDuaNotice:"z. B. Kinderwagen oder Scooter mitnehmen",
     placeholderNotice:"z. B. Turnsackerl mitnehmen", photoNameOptional:"Name (optional)",
     schoolYear:"🗓️ Ferien, schulfreie Tage<br>& wichtige Termine",
     schoolYearToggleLabel:"Aktivieren (gilt das ganze Schuljahr, an jedem Tag sichtbar)",
@@ -10525,7 +10541,7 @@ const T = {
     globalSaved:"kaydedildi · herkes için görünür", globalSaveFailed:"Kaydetme başarısız (",
     photosEvent:"Fotoğraflar & Belgeler (örn. davetiye, kağıt, PDF)", placeholderKinder:"Ne var? (örn. Fener Bayramı)",
     placeholderEltern:"örn. daha uzun çalışmak zorunda", placeholderRemark:"örn. Basketbol kursu",
-    placeholderEventName:"Başlık, örn. Veli Toplantısı", eventNoteLabel:"Notlar / Bilgiler", eventNotePlaceholder:"Randevu hakkında bilgileri buraya yaz — örn. ne getirilecek, buluşma yeri, program, ücret …", placeholderDuaNotice:"örn. bebek arabası veya scooter götürün",
+    placeholderEventName:"Başlık, örn. Veli Toplantısı", syDateLabel:"Tarih", eventNoteLabel:"Notlar / Bilgiler", eventNotePlaceholder:"Randevu hakkında bilgileri buraya yaz — örn. ne getirilecek, buluşma yeri, program, ücret …", placeholderDuaNotice:"örn. bebek arabası veya scooter götürün",
     placeholderNotice:"örn. spor çantası götürün", photoNameOptional:"İsim (opsiyonel)",
     schoolYear:"🗓️ Tatiller, okulsuz günler<br>& önemli randevular",
     schoolYearToggleLabel:"Etkinleştir (tüm okul yılı boyunca, her gün görünür)",
@@ -16666,13 +16682,20 @@ function renderSchoolYearList(){
     return `
       <div class="sy-entry-row" data-idx="${idx}">
         <div class="sy-entry-summary">
-          ${kidBadge}
-          <span class="sy-entry-date" style="color:${kidColor};">${dateLabel}${dateRangeLabel}${timeLabel}${participantsLabel}</span>
-          <span class="sy-entry-text-preview">${escapeHtml((e.text||"").slice(0,40))}${(e.text||"").length>40?"…":""}</span>
+          <div class="sy-entry-main">
+            <div class="sy-entry-meta">
+              ${kidBadge}
+              <span class="sy-entry-date" style="color:${kidColor};">${dateLabel}${dateRangeLabel}${timeLabel}</span>
+              ${e.participants.length>0 ? `<span class="sy-entry-people">👤 ${escapeHtml(e.participants.join(", "))}</span>` : ""}
+            </div>
+            <div class="sy-entry-title">${(e.text||"").trim() ? escapeHtml(e.text) : `<span class="mini-summary-empty">${t("noTitle")}</span>`}</div>
+          </div>
           ${e.photos && e.photos.length ? evIconRowHtml(e.photos) : ""}
           <span class="sy-entry-arrow">${expanded?"▾":"▸"}</span>
         </div>
         <div class="sy-entry-detail" style="display:${expanded?"block":"none"};">
+          <label class="field-label sy-date-label">📅 ${t("syDateLabel")}</label>
+          <input type="date" class="sy-start-date sy-date-big" value="${e.startDate}">
           <textarea class="sy-text autogrow" rows="1" placeholder="${t("schoolYearTextPlaceholder")}">${escapeHtml(e.text)}</textarea>
           <label class="sy-schoolfree-check">
             <input type="checkbox" class="sy-schoolfree" ${e.schoolFree?"checked":""}>
@@ -16688,14 +16711,11 @@ function renderSchoolYearList(){
           </div>
           <label class="field-label" style="margin-top:10px;font-size:13px;">${t("participants")}</label>
           <div class="chips sy-participant-chips">${getActiveNames().map(n=>nameChipHtml(n, e.participants.includes(n))).join("")}</div>
-          <div class="row2" style="margin-top:10px;">
-            <div><input type="date" class="sy-start-date" value="${e.startDate}"></div>
-          </div>
           <div class="subrow">
             <input type="checkbox" class="sy-has-end-date" ${e.hasEndDate?"checked":""}>
             <label>${t("schoolYearEndDateLabel")}</label>
           </div>
-          ${e.hasEndDate ? `<div class="row2" style="margin-top:6px;"><div><input type="date" class="sy-end-date" value="${e.endDate}"></div></div>` : ""}
+          ${e.hasEndDate ? `<div class="row2" style="margin-top:6px;"><div><input type="date" class="sy-end-date sy-date-big" value="${e.endDate}"></div></div>` : ""}
           <div class="subrow">
             <input type="checkbox" class="sy-has-time" ${e.hasTime?"checked":""}>
             <label>${t("schoolYearTimeLabel")}</label>
